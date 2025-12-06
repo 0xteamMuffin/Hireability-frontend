@@ -1,8 +1,20 @@
 "use client";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation"; // 1. Import useRouter
 
 export const SignupPage = () => {
+  const router = useRouter(); // 2. Initialize router
+
+  // 3. Handle Form Submission
+  const handleSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Add your actual authentication/registration logic here (e.g., Firebase/Supabase)
+
+    // Redirect to onboarding after successful signup
+    router.push("/onboarding");
+  };
+
   return (
     <div
       className="min-h-screen relative flex items-center justify-center overflow-hidden bg-gradient-to-b from-white via-slate-50 to-slate-100"
@@ -46,8 +58,8 @@ export const SignupPage = () => {
             </p>
           </div>
 
-          {/* Form */}
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          {/* Form - Updated onSubmit */}
+          <form className="space-y-4" onSubmit={handleSignup}>
             {/* Username Field */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5 ml-1">
@@ -94,7 +106,10 @@ export const SignupPage = () => {
             </div>
 
             {/* Submit Button */}
-            <button className="w-full bg-indigo-400 text-white font-bold rounded-xl py-3.5 mt-6 hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 flex items-center justify-center gap-2 group">
+            <button
+              type="submit"
+              className="w-full bg-indigo-400 text-white font-bold rounded-xl py-3.5 mt-6 hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 flex items-center justify-center gap-2 group"
+            >
               Sign Up
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
@@ -105,7 +120,7 @@ export const SignupPage = () => {
             <p className="text-slate-500">
               Already have an account?{" "}
               <a
-                href="/login"
+                href="/signin" // Changed to match your Link href convention
                 className="font-bold text-indigo-400 hover:text-indigo-500 hover:underline transition-all"
               >
                 Log in
