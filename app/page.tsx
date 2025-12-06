@@ -1,10 +1,10 @@
 "useclient";
-import { Navbar } from "@/components/start/navbar";
-import { Hero } from "@/components/start/hero";
-import { CTA } from "@/components/start/cta";
-import { FeatureCards } from "@/components/start/featurecards";
-import { Partners } from "@/components/start/partners";
-import { Footer } from "@/components/start/footer";
+import { Navbar } from "@/components/landing/navbar";
+import { Hero } from "@/components/landing/hero";
+import { CTA } from "@/components/landing/cta";
+import { FeatureCards } from "@/components/landing/featurecards";
+import { Partners } from "@/components/landing/partners";
+import { Footer } from "@/components/landing/footer";
 
 // --- MAIN APP COMPONENT ---
 

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link"; // Import Next.js Link
 import { Menu, X } from "lucide-react";
 
 export const Navbar = () => {
@@ -17,24 +18,36 @@ export const Navbar = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          {/* Logo */}
-          <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer group">
+          {/* Logo - Linked to Home */}
+          <Link
+            href="/"
+            className="flex-shrink-0 flex items-center gap-2 cursor-pointer group"
+          >
             <div className="w-8 h-8 bg-indigo-400 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200 group-hover:bg-indigo-500 transition-colors">
               <span className="text-white font-bold text-lg">H</span>
             </div>
             <span className="font-bold text-xl text-slate-900 tracking-tight">
               HireAbility
             </span>
-          </div>
+          </Link>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex space-x-8 items-center">
-            <button className="text-slate-600 font-medium hover:text-indigo-500 transition-colors">
+            {/* Login Link */}
+            <Link
+              href="/signin"
+              className="text-slate-600 font-medium hover:text-indigo-500 transition-colors"
+            >
               Login
-            </button>
-            <button className="bg-indigo-400 text-white px-6 py-2 rounded-full font-semibold hover:bg-indigo-500 transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5">
+            </Link>
+
+            {/* Sign Up Link */}
+            <Link
+              href="/signup"
+              className="bg-indigo-400 text-white px-6 py-2 rounded-full font-semibold hover:bg-indigo-500 transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5"
+            >
               Sign Up
-            </button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -53,6 +66,7 @@ export const Navbar = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-b border-indigo-50 shadow-xl">
           <div className="px-4 pt-2 pb-4 space-y-2">
+            {/* Scroll Links */}
             {["Solution", "Features", "Team"].map((item) => (
               <a
                 key={item}
@@ -63,13 +77,23 @@ export const Navbar = () => {
                 {item}
               </a>
             ))}
+
+            {/* Mobile Auth Links */}
             <div className="pt-2 flex flex-col gap-2">
-              <button className="w-full text-center text-slate-600 font-medium py-2 hover:text-indigo-500">
+              <Link
+                href="/signin"
+                onClick={() => setIsOpen(false)}
+                className="w-full text-center text-slate-600 font-medium py-2 hover:text-indigo-500 block"
+              >
                 Login
-              </button>
-              <button className="w-full bg-indigo-400 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-500 shadow-md shadow-indigo-200">
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setIsOpen(false)}
+                className="w-full bg-indigo-400 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-500 shadow-md shadow-indigo-200 block text-center"
+              >
                 Sign Up
-              </button>
+              </Link>
             </div>
           </div>
         </div>
