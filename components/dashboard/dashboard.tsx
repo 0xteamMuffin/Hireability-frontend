@@ -121,18 +121,19 @@ export const DashboardPage = () => {
         {/* Nav Links */}
         <nav className="flex-1 space-y-2">
           {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                activeTab === item.id
-                  ? "bg-indigo-400 text-white shadow-lg shadow-indigo-200"
-                  : "text-slate-500 hover:bg-white hover:text-indigo-400"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
+            <Link href={`/${item.id}`} key={item.id}>
+              <button
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  activeTab === item.id
+                    ? "bg-indigo-400 text-white shadow-lg shadow-indigo-200"
+                    : "text-slate-500 hover:bg-white hover:text-indigo-400"
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            </Link>
           ))}
         </nav>
 
