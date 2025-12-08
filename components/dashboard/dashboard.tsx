@@ -16,6 +16,7 @@ import {
   Calendar,
   CheckCircle2,
 } from "lucide-react";
+import Link from "next/link";
 
 // --- MOCK DATA ---
 const stats = [
@@ -205,14 +206,15 @@ export const DashboardPage = () => {
                       <span className="font-semibold text-white">Amazon</span>.
                     </p>
                   </div>
-
-                  <button className="relative z-10 bg-white text-indigo-500 px-8 py-4 rounded-full font-bold shadow-lg hover:bg-slate-50 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap">
-                    Start Session
-                    <Play
-                      size={20}
-                      className="fill-indigo-500 group-hover:translate-x-1 transition-transform"
-                    />
-                  </button>
+                  <Link href={"/start"}>
+                    <button className="relative z-10 bg-white text-indigo-500 px-8 py-4 rounded-full font-bold shadow-lg hover:bg-slate-50 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer">
+                      Start Session
+                      <Play
+                        size={20}
+                        className="fill-indigo-500 group-hover:translate-x-1 transition-transform"
+                      />
+                    </button>
+                  </Link>
                 </section>
                 {/* 1. ANALYTICS SECTION (Top) */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
