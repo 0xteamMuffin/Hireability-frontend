@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   ArrowRight,
@@ -11,9 +12,10 @@ import {
   Briefcase,
   Building2,
   Award,
+  Loader2,
 } from "lucide-react";
+import { profileApi, documentApi } from "@/lib/api";
 
-// Define the shape of the form state
 interface OnboardingData {
   role: string;
   company: string;
@@ -22,9 +24,12 @@ interface OnboardingData {
 }
 
 export const OnboardingPage = () => {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Typed State for selections
   const [formData, setFormData] = useState<OnboardingData>({
     role: "",
     company: "",
@@ -34,7 +39,6 @@ export const OnboardingPage = () => {
 
   const totalSteps = 4;
 
-  // Data Lists
   const roles: string[] = [
     "Frontend Developer",
     "Backend Developer",
@@ -66,12 +70,27 @@ export const OnboardingPage = () => {
     "Engineering Manager",
   ];
 
-  // Helper to handle selection safely
   const handleSelect = (field: keyof OnboardingData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setError(null);
   };
 
-  // Navigation Handlers
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== "application/pdf") {
+        setError("Only PDF files are allowed");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError("File size must be less than 10MB");
+        return;
+      }
+      setFormData((prev) => ({ ...prev, resume: file }));
+      setError(null);
+    }
+  };
+
   const handleNext = () => {
     if (step < totalSteps) setStep(step + 1);
   };
@@ -80,7 +99,36 @@ export const OnboardingPage = () => {
     if (step > 1) setStep(step - 1);
   };
 
-  // Animation Variants typed correctly
+  const handleFinish = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const profileRes = await profileApi.upsert({
+        targetRole: formData.role,
+        targetCompany: formData.company,
+        level: formData.level,
+      });
+
+      if (!profileRes.success) {
+        throw new Error(profileRes.error || "Failed to save profile");
+      }
+
+      if (formData.resume) {
+        const docRes = await documentApi.uploadResume(formData.resume);
+        if (!docRes.success) {
+          console.warn("Resume upload failed:", docRes.error);
+        }
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const slideVariants: Variants = {
     enter: (direction: number) => ({
       x: direction > 0 ? 50 : -50,
@@ -271,7 +319,6 @@ export const OnboardingPage = () => {
                 </motion.div>
               )}
 
-              {/* STEP 4: RESUME UPLOAD */}
               {step === 4 && (
                 <motion.div
                   key="step4"
@@ -294,22 +341,53 @@ export const OnboardingPage = () => {
                     </p>
                   </div>
 
-                  <div className="max-w-2xl mx-auto border-3 border-dashed border-slate-200 rounded-[2rem] p-16 text-center hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group bg-slate-50/50">
-                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400 group-hover:text-indigo-400 group-hover:scale-110 shadow-sm transition-all">
-                      <Upload size={36} />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`max-w-2xl mx-auto border-3 border-dashed rounded-[2rem] p-16 text-center transition-all cursor-pointer group bg-slate-50/50 ${
+                      formData.resume
+                        ? "border-indigo-400 bg-indigo-50/30"
+                        : "border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30"
+                    }`}
+                  >
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm transition-all ${
+                      formData.resume
+                        ? "bg-indigo-400 text-white"
+                        : "bg-white text-slate-400 group-hover:text-indigo-400 group-hover:scale-110"
+                    }`}>
+                      {formData.resume ? <CheckCircle size={36} /> : <Upload size={36} />}
                     </div>
-                    <p className="font-bold text-xl text-slate-700 mb-2">
-                      Click to upload PDF or DOCX
-                    </p>
-                    <p className="text-slate-400">Maximum file size 5MB</p>
+                    {formData.resume ? (
+                      <>
+                        <p className="font-bold text-xl text-indigo-600 mb-2">
+                          {formData.resume.name}
+                        </p>
+                        <p className="text-slate-400">Click to change file</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold text-xl text-slate-700 mb-2">
+                          Click to upload PDF
+                        </p>
+                        <p className="text-slate-400">Maximum file size 10MB</p>
+                      </>
+                    )}
                   </div>
 
                   <div className="text-center mt-8">
                     <button
-                      onClick={handleNext}
-                      className="text-slate-400 hover:text-indigo-400 font-medium transition-colors hover:underline"
+                      onClick={handleFinish}
+                      disabled={isLoading}
+                      className="text-slate-400 hover:text-indigo-400 font-medium transition-colors hover:underline disabled:opacity-50"
                     >
-                      Skip for now
+                      {isLoading ? "Saving..." : "Skip for now"}
                     </button>
                   </div>
                 </motion.div>
@@ -317,11 +395,17 @@ export const OnboardingPage = () => {
             </AnimatePresence>
           </div>
 
-          {/* BOTTOM NAVIGATION */}
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-between items-center mt-12 pt-8 border-t border-slate-100">
             <button
               onClick={handleBack}
-              className={`flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-400 transition-colors px-4 py-2 rounded-lg hover:bg-slate-50 ${
+              disabled={isLoading}
+              className={`flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-400 transition-colors px-4 py-2 rounded-lg hover:bg-slate-50 disabled:opacity-50 ${
                 step === 1 ? "opacity-0 pointer-events-none" : "opacity-100"
               }`}
             >
@@ -329,16 +413,23 @@ export const OnboardingPage = () => {
             </button>
 
             <button
-              onClick={handleNext}
+              onClick={step === totalSteps ? handleFinish : handleNext}
               disabled={
+                isLoading ||
                 (step === 1 && !formData.role) ||
                 (step === 2 && !formData.company) ||
                 (step === 3 && !formData.level)
               }
               className="bg-indigo-400 text-white px-10 py-4 rounded-full font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
             >
-              {step === totalSteps ? "Finish Setup" : "Next"}{" "}
-              <ArrowRight size={20} />
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  {step === totalSteps ? "Finish Setup" : "Next"}
+                  <ArrowRight size={20} />
+                </>
+              )}
             </button>
           </div>
         </motion.div>
