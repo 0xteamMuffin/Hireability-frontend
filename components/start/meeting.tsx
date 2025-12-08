@@ -1,15 +1,21 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Mic,
     MicOff,
     Video,
     VideoOff,
     PhoneOff,
-    AlertCircle
+    AlertCircle,
+    Loader2,
+    Radio,
 } from 'lucide-react';
 import Link from 'next/link';
+import Vapi from '@vapi-ai/web';
 import MeetingVideo from './meeting-video';
+import { useAuth } from '@/lib/hooks';
+import { vapiApi } from '@/lib/api';
+import { VapiContext } from '@/lib/types';
 
 const useTime = () => {
     const [time, setTime] = useState(new Date());
@@ -23,14 +29,116 @@ const useTime = () => {
 };
 
 const Meeting: React.FC = () => {
+    const { user } = useAuth();
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
     const [permissionError, setPermissionError] = useState<string | null>(null);
+    const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
+    const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [vapiError, setVapiError] = useState<string | null>(null);
+    const [contextStatus, setContextStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+    const [context, setContext] = useState<VapiContext | null>(null);
+    const [transcripts, setTranscripts] = useState<Array<{ role: string; text: string }>>([]);
 
     const currentTime = useTime();
 
     const toggleMic = () => setMicOn((prev) => !prev);
     const toggleCamera = () => setCameraOn((prev) => !prev);
+
+    useEffect(() => {
+        const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
+        if (!apiKey) {
+            setVapiError('Missing NEXT_PUBLIC_VAPI_PUBLIC_KEY environment variable');
+            return;
+        }
+
+        const client = new Vapi(apiKey);
+        setVapiClient(client);
+
+        client.on('call-start', () => {
+            setCallStatus('in-call');
+            setVapiError(null);
+        });
+
+        client.on('call-end', () => {
+            setCallStatus('idle');
+            setIsSpeaking(false);
+        });
+
+        client.on('speech-start', () => setIsSpeaking(true));
+        client.on('speech-end', () => setIsSpeaking(false));
+
+        client.on('message', (message: any) => {
+            if (message.type === 'transcript') {
+                setTranscripts((prev) => [...prev.slice(-10), { role: message.role, text: message.transcript }]);
+            }
+        });
+
+        client.on('error', (error: any) => {
+            setVapiError(error?.message || 'Vapi error');
+            setCallStatus('idle');
+        });
+
+        return () => {
+            client.stop();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!user) return;
+
+        const loadContext = async () => {
+            setContextStatus('loading');
+            const response = await vapiApi.getContext();
+            if (response.success && response.data) {
+                setContext(response.data);
+                setContextStatus('idle');
+            } else {
+                setContextStatus('error');
+                setVapiError(response.error || 'Failed to load interview context');
+            }
+        };
+
+        loadContext();
+    }, [user]);
+
+    const startInterview = async () => {
+        if (!user) {
+            setVapiError('Please sign in to start the interview.');
+            return;
+        }
+
+        if (!vapiClient) {
+            setVapiError('Voice client is not ready yet.');
+            return;
+        }
+
+        const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
+        if (!assistantId) {
+            setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID environment variable');
+            return;
+        }
+
+        setCallStatus('connecting');
+
+        try {
+            await vapiClient.start(assistantId, {
+                variableValues: {
+                    userId: user.id,
+                    userContext: context?.prompt || null,
+                },
+            } as any);
+        } catch (error) {
+            setCallStatus('idle');
+            setVapiError(error instanceof Error ? error.message : 'Failed to start the interview');
+        }
+    };
+
+    const stopInterview = () => {
+        vapiClient?.stop();
+        setCallStatus('idle');
+    };
 
     if (permissionError) {
         return (
@@ -64,8 +172,7 @@ const Meeting: React.FC = () => {
     return (
         <div className="flex flex-col h-screen bg-[#202124] text-white overflow-hidden font-sans">
             <div className="flex justify-between items-center p-4 h-14 shrink-0">
-                <div className="text-lg font-medium tracking-tight text-white/90">
-                </div>
+                <div className="text-lg font-medium tracking-tight text-white/90" />
                 <div className="text-lg font-medium text-white/90">
                     {currentTime}
                 </div>
@@ -88,15 +195,68 @@ const Meeting: React.FC = () => {
                     <div className="absolute bottom-4 left-4 text-white font-medium text-sm bg-black/40 px-3 py-1 rounded-lg backdrop-blur-sm">
                         Interviewer
                     </div>
+                    <div className="absolute bottom-8 right-8 w-64 h-40">
+                        <MeetingVideo
+                            cameraOn={cameraOn}
+                            micOn={micOn}
+                            setPermissionError={setPermissionError}
+                            userInitial={user?.username?.[0]?.toUpperCase() || 'Y'}
+                        />
+                    </div>
                 </div>
 
-                <div className="absolute bottom-8 right-8 w-64 h-40">
-                    <MeetingVideo
-                        cameraOn={cameraOn}
-                        micOn={micOn}
-                        setPermissionError={setPermissionError}
-                        userInitial="Y"
-                    />
+                <div className="w-96 shrink-0 bg-[#2a2d32] rounded-2xl p-4 flex flex-col gap-4 ring-1 ring-white/10">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-white/80">AI Interview Assistant</p>
+                            <p className="text-xs text-white/60">
+                                {callStatus === 'in-call' ? 'Live' : callStatus === 'connecting' ? 'Connecting...' : 'Idle'}
+                            </p>
+                        </div>
+                        <div className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full ${callStatus === 'in-call' ? 'bg-green-500/20 text-green-200' : 'bg-white/10 text-white/70'}`}>
+                            <Radio size={14} className={callStatus === 'in-call' ? 'animate-pulse' : ''} />
+                            {isSpeaking ? 'Speaking' : callStatus === 'in-call' ? 'Listening' : 'Idle'}
+                        </div>
+                    </div>
+
+                    <div className="bg-[#202124] rounded-xl p-3 space-y-2 ring-1 ring-white/5">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-white/80">User context</span>
+                            {contextStatus === 'loading' && <Loader2 size={16} className="animate-spin text-white/60" />}
+                            {contextStatus === 'error' && <AlertCircle size={16} className="text-orange-300" />}
+                        </div>
+                        <div className="text-xs text-white/70 space-y-1">
+                            <p>Target role: {context?.profile?.targetRole || 'Not set'}</p>
+                            <p>Target company: {context?.profile?.targetCompany || 'Not set'}</p>
+                            <p>Level: {context?.profile?.level || 'Not set'}</p>
+                            <p>Resume: {context?.resume?.fileName || 'No resume uploaded'}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#202124] rounded-xl p-3 ring-1 ring-white/5 flex-1 flex flex-col">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-white/80">Live transcript</span>
+                            <span className="text-xs text-white/60">{transcripts.length} lines</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                            {transcripts.length === 0 ? (
+                                <p className="text-xs text-white/50">Transcripts will appear here.</p>
+                            ) : (
+                                transcripts.map((entry, idx) => (
+                                    <div key={`${entry.role}-${idx}`} className="text-xs bg-white/5 rounded-lg p-2">
+                                        <span className="font-semibold text-white/80 capitalize">{entry.role}: </span>
+                                        <span className="text-white/70">{entry.text}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {vapiError && (
+                        <div className="text-xs text-red-300 bg-red-500/10 rounded-lg p-2 border border-red-500/30">
+                            {vapiError}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -121,6 +281,18 @@ const Meeting: React.FC = () => {
                         offIcon={<VideoOff size={20} />}
                         tooltip={cameraOn ? "Turn off camera" : "Turn on camera"}
                     />
+
+                    <button
+                        onClick={callStatus === 'in-call' ? stopInterview : startInterview}
+                        className={`rounded-full px-4 py-3 text-sm font-medium transition-all border ${callStatus === 'in-call'
+                            ? 'bg-red-500 text-white border-transparent hover:bg-red-600'
+                            : 'bg-green-500 text-white border-transparent hover:bg-green-600'
+                            }`}
+                        title="Toggle AI interview"
+                        disabled={contextStatus === 'loading' || !vapiClient}
+                    >
+                        {callStatus === 'in-call' ? 'End AI interview' : 'Start AI interview'}
+                    </button>
 
                     <Link href={"/"}>
                         <button

@@ -48,3 +48,18 @@ export interface Document {
   processedAt: string | null;
   createdAt: string;
 }
+
+export interface VapiContext {
+  prompt: string;
+  profile: {
+    targetRole: string | null;
+    targetCompany: string | null;
+    level: string | null;
+  } | null;
+  resume: {
+    fileName: string;
+    status: string;
+    parsedData: Record<string, unknown> | null;
+    confidence: number | null;
+  } | null;
+}
