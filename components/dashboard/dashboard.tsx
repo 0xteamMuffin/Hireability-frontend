@@ -16,6 +16,7 @@ import {
   Calendar,
   CheckCircle2,
 } from "lucide-react";
+import { useAuth } from "@/lib/hooks";
 
 // --- MOCK DATA ---
 const stats = [
@@ -67,6 +68,7 @@ const recents = [
 ];
 
 export const DashboardPage = () => {
+  const { user, signout } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Sidebar Items
@@ -141,11 +143,14 @@ export const DashboardPage = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-800 truncate">
-                John Doe
+                {user?.username || "User"}
               </p>
               <p className="text-xs text-slate-500 truncate">Free Plan</p>
             </div>
-            <button className="text-slate-400 hover:text-red-400 transition-colors">
+            <button
+              onClick={signout}
+              className="text-slate-400 hover:text-red-400 transition-colors"
+            >
               <LogOut size={18} />
             </button>
           </div>
