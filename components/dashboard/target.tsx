@@ -77,7 +77,7 @@ export const TargetPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* --- LEFT COLUMN: ADD FORM --- */}
         <div className="lg:col-span-1">
-          <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-6 shadow-sm sticky top-6">
+          <section className="bg-white/60 backdrop-blur-md border border-white rounded-4xl p-6 shadow-sm sticky top-6">
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Plus size={18} className="text-indigo-400" /> Add New Target
             </h3>
@@ -199,7 +199,7 @@ export const TargetPage = () => {
           </AnimatePresence>
 
           {goals.length === 0 && (
-            <div className="text-center py-12 bg-white/40 border-2 border-dashed border-slate-200 rounded-[2rem]">
+            <div className="text-center py-12 bg-white/40 border-2 border-dashed border-slate-200 rounded-4xl">
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                 <Target size={32} />
               </div>
