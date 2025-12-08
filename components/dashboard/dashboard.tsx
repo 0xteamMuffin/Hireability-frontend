@@ -104,7 +104,7 @@ export const DashboardHome = () => {
             <span className="font-semibold text-white">Amazon</span>.
           </p>
         </div>
-        <Link href="/start">
+        <Link href="/config">
           <button className="relative z-10 bg-white text-indigo-500 px-8 py-4 rounded-full font-bold shadow-lg hover:bg-slate-50 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer">
             Start Session
             <Play
