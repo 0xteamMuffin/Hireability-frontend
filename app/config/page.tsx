@@ -1,68 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { InterviewStartBar } from "@/components/config/interview-started";
 import { CompanyCard } from "@/components/config/company-logo";
-
-// --- MOCK DATA ---
-const mockCompanies = [
-  {
-    id: 1,
-    companyName: "Amazon",
-    companyEmail: "careers@amazon.com",
-    role: "Backend Developer",
-  },
-  {
-    id: 2,
-    companyName: "Google",
-    companyEmail: "hiring@google.com",
-    role: "Full Stack Engineer",
-  },
-  {
-    id: 3,
-    companyName: "Netflix",
-    companyEmail: "jobs@netflix.com",
-    role: "SDE II",
-  },
-  {
-    id: 4,
-    companyName: "Microsoft",
-    companyEmail: "careers@microsoft.com",
-    role: "Software Engineer",
-  },
-  {
-    id: 5,
-    companyName: "Meta",
-    companyEmail: "recruiting@meta.com",
-    role: "Frontend Developer",
-  },
-  {
-    id: 6,
-    companyName: "Apple",
-    companyEmail: "jobs@apple.com",
-    role: "iOS Developer",
-  },
-  {
-    id: 7,
-    companyName: "Tesla",
-    companyEmail: "recruiting@tesla.com",
-    role: "Frontend Developer",
-  },
-  {
-    id: 8,
-    companyName: "Spotify",
-    companyEmail: "jobs@spotify.com",
-    role: "iOS Developer",
-  },
-];
+import { targetApi, TargetCompany } from "@/lib/api";
 
 const ConfigPage = () => {
-  const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
+  const [targets, setTargets] = useState<TargetCompany[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
-  const selected = mockCompanies.find((c) => c.id === selectedCompany);
+  useEffect(() => {
+    fetchTargets();
+  }, []);
+
+  const fetchTargets = async () => {
+    setLoading(true);
+    const response = await targetApi.getAll();
+    if (response.success && response.data) {
+      setTargets(response.data);
+    }
+    setLoading(false);
+  };
+
+  const selected = targets.find((c) => c.id === selectedCompany);
 
   return (
     <div
@@ -135,24 +99,58 @@ const ConfigPage = () => {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <AnimatePresence>
-              {mockCompanies.map((company, idx) => (
-                <CompanyCard
-                  key={company.id}
-                  company={company}
-                  isSelected={selectedCompany === company.id}
-                  onSelect={() => setSelectedCompany(company.id)}
-                  index={idx}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-indigo-400" />
+            </div>
+          ) : targets.length === 0 ? (
+            <div className="text-center py-20 bg-white/40 border-2 border-dashed border-slate-200 rounded-3xl">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                <Sparkles size={32} />
+              </div>
+              <p className="text-slate-500 font-medium mb-2">No target companies yet</p>
+              <p className="text-slate-400 text-sm mb-4">
+                Add your target companies in the dashboard to start practicing interviews.
+              </p>
+              <Link href="/dashboard/target">
+                <button className="bg-indigo-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 transition-all">
+                  Add Target Companies
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <AnimatePresence>
+                {targets.map((company, idx) => (
+                  <CompanyCard
+                    key={company.id}
+                    company={{
+                      id: company.id,
+                      companyName: company.companyName,
+                      companyEmail: company.companyEmail || "",
+                      role: company.role,
+                    }}
+                    isSelected={selectedCompany === company.id}
+                    onSelect={() => setSelectedCompany(company.id)}
+                    index={idx}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </main>
 
       <AnimatePresence>
-        {selected && <InterviewStartBar selectedCompany={selected} />}
+        {selected && (
+          <InterviewStartBar
+            selectedCompany={{
+              companyName: selected.companyName,
+              companyEmail: selected.companyEmail || "",
+              role: selected.role,
+            }}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
