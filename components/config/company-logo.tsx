@@ -5,7 +5,7 @@ import { Mail, Briefcase, CheckCircle2 } from "lucide-react";
 
 interface CompanyCardProps {
   company: {
-    id: number;
+    id: string;
     companyName: string;
     companyEmail: string;
     role: string;
