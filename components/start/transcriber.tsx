@@ -46,55 +46,75 @@ export interface ConversationEntry {
 function Transcriber({ conversation }: { conversation: ConversationEntry[] }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+   React.useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [conversation]);
 
   return (
-    <div className="flex flex-col size-full max-w-full mx-auto bg-background rounded-lg shadow-lg overflow-hidden">
-      <div className="bg-secondary px-4 py-3 flex items-center justify-between">
-        <div className="font-medium text-foreground">Live Transcript</div>
+    <div className="flex flex-col h-full bg-[#202124] rounded-lg overflow-hidden p-1">
+      <div className="bg-[#2a2d32] px-4 py-3 flex items-center justify-between shrink-0 border-b border-white/5">
+        <div className="font-medium text-white text-sm">Live Transcript</div>
+        <div className="text-xs text-white/60">{conversation.length} messages</div>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {conversation.map((message, index) => (
-          <div
-            key={index}
-            className={cn(
-              "flex items-start gap-3",
-              message.role === "user" && "justify-end"
-            )}
-          >
-            {message.role !== "user" && (
-              <Avatar className="w-8 h-8 shrink-0 bg-secondary text-foreground">
-                <AvatarFallback>
-                  <Bot size={16} />
-                </AvatarFallback>
-              </Avatar>
-            )}
+
+      <div 
+        ref={scrollRef} 
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(255, 255, 255, 0.1) transparent'
+        }}
+      >
+        {conversation.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center text-white/40">
+            <Bot size={48} className="mb-4 opacity-30" />
+            <p className="text-sm">Transcript will appear here</p>
+            <p className="text-xs mt-1">Start the interview to see messages</p>
+          </div>
+        ) : (
+          conversation.map((message, index) => (
             <div
+              key={index}
               className={cn(
-                "px-4 py-2 rounded-lg max-w-[70%]",
-                message.role === "user"
-                  ? "bg-primary text-background"
-                  : "bg-secondary text-foreground"
+                "flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
+                message.role === "user" && "justify-end"
               )}
             >
-              <p>{message.text}</p>
-              <div className="text-[10px] text-muted-foreground mt-1">
-                {message.timestamp}
+              {message.role !== "user" && (
+                <Avatar className="w-8 h-8 shrink-0 bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <AvatarFallback>
+                    <Bot size={16} />
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <div
+                className={cn(
+                  "px-4 py-2.5 rounded-2xl max-w-[75%] wrap-break-word",
+                  message.role === "user"
+                    ? "bg-slate-600 text-white rounded-br-md"
+                    : "bg-[#2a2d32] text-white/90 border border-white/10 rounded-bl-md"
+                )}
+              >
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                <div className="text-[10px] text-white/40 mt-1.5">
+                  {message.timestamp}
+                </div>
               </div>
+              {message.role === "user" && (
+                <Avatar className="w-8 h-8 shrink-0 bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <AvatarFallback>
+                    <User size={16} />
+                  </AvatarFallback>
+                </Avatar>
+              )}
             </div>
-            {message.role === "user" && (
-              <Avatar className="w-8 h-8 shrink-0 bg-primary text-background">
-                <AvatarFallback>
-                  <User size={16} />
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
@@ -102,4 +122,3 @@ function Transcriber({ conversation }: { conversation: ConversationEntry[] }) {
 
 export default Transcriber;
 export { Avatar, AvatarFallback };
-
