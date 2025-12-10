@@ -268,8 +268,8 @@ const Meeting: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="w-96 shrink-0 bg-[#2a2d32] rounded-2xl p-4 flex flex-col gap-4 ring-1 ring-white/10">
-                    <div className="flex items-center justify-between">
+                <div className="w-96 shrink-0 bg-[#2a2d32] rounded-2xl p-4 flex flex-col gap-4 ring-1 ring-white/10 max-h-[calc(100vh-8rem)] overflow-hidden">
+                    <div className="flex items-center justify-between shrink-0">
                         <div>
                             <p className="text-sm text-white/80">AI Interview Assistant</p>
                             <p className="text-xs text-white/60">
@@ -282,7 +282,7 @@ const Meeting: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="bg-[#202124] rounded-xl p-3 space-y-2 ring-1 ring-white/5">
+                    <div className="bg-[#202124] rounded-xl p-3 space-y-2 ring-1 ring-white/5 shrink-0">
                         <div className="flex items-center justify-between text-sm">
                             <span className="text-white/80">User context</span>
                             {contextStatus === 'loading' && <Loader2 size={16} className="animate-spin text-white/60" />}
@@ -296,12 +296,12 @@ const Meeting: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="bg-[#202124] rounded-xl p-3 ring-1 ring-white/5 flex-1 flex flex-col">
+                    <div className="bg-[#202124] rounded-xl ring-1 ring-white/5 flex-1 min-h-0">
                         <Transcriber conversation={conversation} />
                     </div>
 
                     {vapiError && (
-                        <div className="text-xs text-red-300 bg-red-500/10 rounded-lg p-2 border border-red-500/30">
+                        <div className="text-xs text-red-300 bg-red-500/10 rounded-lg p-2 border border-red-500/30 shrink-0">
                             {vapiError}
                         </div>
                     )}
