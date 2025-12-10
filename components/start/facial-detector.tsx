@@ -19,19 +19,19 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [modelsLoaded, setModelsLoaded] = useState(false);
 
-    // Load face-api models
+    // Load face-api models from local public folder
     useEffect(() => {
         const loadModels = async () => {
             try {
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+                const MODEL_URL = '/models';
                 
                 await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                     faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
                 ]);
                 
                 setModelsLoaded(true);
-                console.log("✅ Face-api models loaded ");
+                console.log("✅ Face-api models loaded from local files");
             } catch (error) {
                 console.error("❌ Error loading face-api models:", error);
             }
@@ -55,10 +55,10 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
             if (!video || video.readyState !== 4) return;
 
             try {
+               
                 const detections = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ 
-                        inputSize: 224, 
-                        scoreThreshold: 0.5 
+                    .detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ 
+                        minConfidence: 0.5 
                     }))
                     .withFaceExpressions();
 
@@ -76,7 +76,7 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
                         disgusted: Math.round(expressions.disgusted * 100),
                     };
                     
-                    console.log("Expression Values:", expressionPercentages);
+                    console.log("📊 Expression Values:", expressionPercentages);
                     
                     // dominant expression
                     const sorted = Object.keys(expressions).sort(
@@ -84,7 +84,7 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
                     );
                     
                     const dominantExpression = sorted[0];
-                    console.log("Dominant Expression:", dominantExpression);
+                    console.log("🎭 Dominant Expression:", dominantExpression);
                     
                     onExpressionChange?.(dominantExpression);
 
@@ -108,7 +108,7 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
                     }
                 }
             } catch (error) {
-                console.error("Error detecting expressions:", error);
+                console.error("❌ Error detecting expressions:", error);
             }
         };
 
