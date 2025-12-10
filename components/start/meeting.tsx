@@ -8,6 +8,7 @@ import Transcriber from './transcriber';
 import VapiOrb from './ui/vapi-orb';
 import MeetingControls from './ui/metting-controls';
 import { useVapi } from '@/lib/hooks/useVapi';
+import { useSearchParams } from 'next/navigation';
 
 const useTime = () => {
     const [time, setTime] = useState(new Date());
@@ -20,6 +21,9 @@ const useTime = () => {
 
 const Meeting: React.FC = () => {
     const { user } = useAuth();
+    const searchParams = useSearchParams();
+    const targetId = searchParams.get('targetId');
+    
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
     const [permissionError, setPermissionError] = useState<string | null>(null);
@@ -36,7 +40,7 @@ const Meeting: React.FC = () => {
         conversation,
         startInterview,
         stopInterview,
-    } = useVapi({ user });
+    } = useVapi({ user, targetId });
 
     const currentTime = useTime();
 

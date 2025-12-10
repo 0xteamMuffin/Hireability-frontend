@@ -10,9 +10,10 @@ interface User {
 
 interface UseVapiProps {
     user: User | null;
+    targetId?: string | null;
 }
 
-export const useVapi = ({ user }: UseVapiProps) => {
+export const useVapi = ({ user, targetId }: UseVapiProps) => {
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -168,7 +169,7 @@ export const useVapi = ({ user }: UseVapiProps) => {
 
         const loadContext = async () => {
             setContextStatus('loading');
-            const response = await vapiApi.getContext();
+            const response = await vapiApi.getContext(targetId || undefined);
             if (response.success && response.data) {
                 setContext(response.data);
                 setContextStatus('idle');
@@ -179,7 +180,7 @@ export const useVapi = ({ user }: UseVapiProps) => {
         };
 
         loadContext();
-    }, [user]);
+    }, [user, targetId]);
 
     const startInterview = async () => {
         if (!user) {
@@ -205,7 +206,7 @@ export const useVapi = ({ user }: UseVapiProps) => {
         try {
             const interviewResp = await vapiApi.startInterview({
                 assistantId,
-                contextPrompt: context?.prompt || null,
+                contextPrompt: context?.systemPrompt || null,
             });
             if (!interviewResp.success || !interviewResp.data) {
                 setCallStatus('idle');
@@ -220,9 +221,20 @@ export const useVapi = ({ user }: UseVapiProps) => {
             callStartedAtRef.current = startTime;
 
             await vapiClient.start(assistantId, {
+                model: {
+                    provider: 'openai',
+                    model: 'gpt-4o',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: context?.systemPrompt,
+                        },
+                    ],
+                },
+                firstMessage: context?.firstMessage,
                 variableValues: {
                     userId: user.id,
-                    userContext: context?.prompt || null,
+                    userContext: context?.systemPrompt || null,
                 },
             } as any);
         } catch (error) {

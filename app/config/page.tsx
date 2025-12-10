@@ -145,6 +145,7 @@ const ConfigPage = () => {
         {selected && (
           <InterviewStartBar
             selectedCompany={{
+              id: selected.id,
               companyName: selected.companyName,
               companyEmail: selected.companyEmail || "",
               role: selected.role,

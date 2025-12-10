@@ -50,7 +50,8 @@ export interface Document {
 }
 
 export interface VapiContext {
-  prompt: string;
+  systemPrompt: string;
+  firstMessage: string;
   profile: {
     targetRole: string | null;
     targetCompany: string | null;
@@ -59,7 +60,7 @@ export interface VapiContext {
   resume: {
     fileName: string;
     status: string;
-    parsedData: Record<string, unknown> | null;
+    parsedData: any;
     confidence: number | null;
   } | null;
 }

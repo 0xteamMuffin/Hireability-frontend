@@ -9,8 +9,9 @@ import {
 } from '../types';
 
 export const vapiApi = {
-  getContext: (): Promise<ApiResponse<VapiContext>> => {
-    return apiClient.get<VapiContext>('/api/vapi/context');
+  getContext: (targetId?: string): Promise<ApiResponse<VapiContext>> => {
+    const url = targetId ? `/api/vapi/context?targetId=${targetId}` : '/api/vapi/context';
+    return apiClient.get<VapiContext>(url);
   },
   saveTranscript: (payload: SaveTranscriptPayload): Promise<ApiResponse<unknown>> => {
     return apiClient.post('/api/transcripts', payload);
