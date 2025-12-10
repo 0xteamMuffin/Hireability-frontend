@@ -25,10 +25,16 @@ export const vapiApi = {
   getInterviewById: (id: string): Promise<ApiResponse<InterviewWithAnalysis>> => {
     return apiClient.get<InterviewWithAnalysis>(`/api/interviews/${id}`);
   },
+  getStats: (): Promise<ApiResponse<{ totalInterviews: number; avgScore: string; hoursPracticed: string }>> => {
+    return apiClient.get('/api/interviews/stats');
+  },
   saveInterviewAnalysis: (
     payload: SaveInterviewAnalysisPayload
   ): Promise<ApiResponse<unknown>> => {
     return apiClient.post('/api/interviews/analysis', payload);
+  },
+  analyzeInterview: (id: string): Promise<ApiResponse<InterviewWithAnalysis>> => {
+    return apiClient.post<InterviewWithAnalysis>(`/api/interviews/${id}/analyze`, {});
   },
 };
 

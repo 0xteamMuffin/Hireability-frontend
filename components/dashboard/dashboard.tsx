@@ -11,58 +11,95 @@ import {
   CheckCircle2,
   MoreVertical,
   User,
+  Loader2,
 } from "lucide-react";
-
-// --- MOCK DATA ---
-const stats = [
-  {
-    label: "Interviews",
-    value: "12",
-    icon: <LayoutDashboard size={20} />,
-    change: "+2 this week",
-  },
-  {
-    label: "Avg. Score",
-    value: "84%",
-    icon: <TrendingUp size={20} />,
-    change: "+5% increase",
-  },
-  {
-    label: "Hours Practiced",
-    value: "8.5h",
-    icon: <Clock size={20} />,
-    change: "Top 10%",
-  },
-];
-
-const recents = [
-  {
-    id: 1,
-    role: "Backend Developer",
-    company: "Amazon",
-    date: "Today, 10:30 AM",
-    score: 88,
-    status: "Completed",
-  },
-  {
-    id: 2,
-    role: "FullStack Engineer",
-    company: "Google",
-    date: "Yesterday",
-    score: 72,
-    status: "Review Pending",
-  },
-  {
-    id: 3,
-    role: "SDE II",
-    company: "Netflix",
-    date: "Oct 24, 2025",
-    score: 91,
-    status: "Completed",
-  },
-];
+import { useEffect, useState } from "react";
+import { vapiApi } from "@/lib/api";
+import { useAuth } from "@/lib/hooks";
+import { InterviewWithAnalysis } from "@/lib/types";
 
 export const DashboardHome = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalInterviews: 0,
+    avgScore: "0%",
+    hoursPracticed: "0h",
+  });
+  const [recents, setRecents] = useState<InterviewWithAnalysis[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        const [statsRes, interviewsRes] = await Promise.all([
+          vapiApi.getStats(),
+          vapiApi.getInterviews(),
+        ]);
+
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data);
+        }
+
+        if (interviewsRes.success && interviewsRes.data) {
+          setRecents(interviewsRes.data.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const statCards = [
+    {
+      label: "Interviews",
+      value: stats.totalInterviews.toString(),
+      icon: <LayoutDashboard size={20} />,
+      change: "Total sessions",
+    },
+    {
+      label: "Avg. Score",
+      value: stats.avgScore,
+      icon: <TrendingUp size={20} />,
+      change: "Overall performance",
+    },
+    {
+      label: "Hours Practiced",
+      value: stats.hoursPracticed,
+      icon: <Clock size={20} />,
+      change: "Time invested",
+    },
+  ];
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+    });
+  };
+
+  const getScore = (interview: InterviewWithAnalysis) => {
+    if (interview.analysis?.overall && typeof interview.analysis.overall === 'object' && 'score' in interview.analysis.overall) {
+      return (interview.analysis.overall as any).score;
+    }
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="animate-spin text-indigo-400" size={40} />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -77,7 +114,7 @@ export const DashboardHome = () => {
             Dashboard
           </h1>
           <p className="text-slate-500 mt-1">
-            Welcome back, ready to ace your next interview?
+            Welcome back, {user?.firstName || "User"}! Ready to ace your next interview?
           </p>
         </div>
         <div className="md:hidden">
@@ -98,10 +135,7 @@ export const DashboardHome = () => {
           </div>
           <h2 className="text-3xl font-bold mb-2">Start New Interview</h2>
           <p className="text-indigo-100 mb-0">
-            Based on your recent onboarding, we have prepared a{" "}
-            <span className="font-semibold text-white">Backend Developer</span>{" "}
-            mock interview for{" "}
-            <span className="font-semibold text-white">Amazon</span>.
+            Start a new mock interview session to practice your skills and get real-time feedback.
           </p>
         </div>
         <Link href="/config">
@@ -117,7 +151,7 @@ export const DashboardHome = () => {
 
       {/* 1. ANALYTICS PREVIEW (Top) */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((stat, idx) => (
+        {statCards.map((stat, idx) => (
           <div
             key={idx}
             className="bg-white/60 backdrop-blur-md border border-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow group"
@@ -126,7 +160,7 @@ export const DashboardHome = () => {
               <div className="p-2 bg-indigo-50 rounded-lg text-indigo-400 group-hover:bg-indigo-400 group-hover:text-white transition-colors">
                 {stat.icon}
               </div>
-              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+              <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
                 {stat.change}
               </span>
             </div>
@@ -149,51 +183,59 @@ export const DashboardHome = () => {
         </div>
 
         <div className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] shadow-sm overflow-hidden">
-          {recents.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`flex items-center justify-between p-5 hover:bg-white/80 transition-colors cursor-pointer ${
-                idx !== recents.length - 1 ? "border-b border-slate-100" : ""
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl">
-                  {item.company[0]}
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800">
-                    {item.role} @ {item.company}
-                  </h4>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                    <Calendar size={12} /> {item.date}
+          {recents.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              No interviews yet. Start one to see it here!
+            </div>
+          ) : (
+            recents.map((item) => {
+              const score = getScore(item);
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-5 hover:bg-white/80 transition-colors cursor-pointer border-b border-slate-100 last:border-0"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl font-bold text-slate-400">
+                      I
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">
+                        Mock Interview
+                      </h4>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                        <Calendar size={12} /> {formatDate(item.startedAt)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div className="text-right hidden sm:block">
+                      <span className="block text-xs text-slate-400 uppercase tracking-wider font-semibold">
+                        Score
+                      </span>
+                      <span
+                        className={`font-bold ${
+                          score && score >= 80 ? "text-green-500" : "text-orange-500"
+                        }`}
+                      >
+                        {score ? `${score}%` : "N/A"}
+                      </span>
+                    </div>
+                    <div className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1.5">
+                      <CheckCircle2 size={12} /> {item.endedAt ? "Completed" : "In Progress"}
+                    </div>
+                    <button className="text-slate-400 hover:text-indigo-400">
+                      <MoreVertical size={20} />
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                <div className="text-right hidden sm:block">
-                  <span className="block text-xs text-slate-400 uppercase tracking-wider font-semibold">
-                    Score
-                  </span>
-                  <span
-                    className={`font-bold ${
-                      item.score >= 80 ? "text-green-500" : "text-orange-500"
-                    }`}
-                  >
-                    {item.score}%
-                  </span>
-                </div>
-                <div className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1.5">
-                  <CheckCircle2 size={12} /> {item.status}
-                </div>
-                <button className="text-slate-400 hover:text-indigo-400">
-                  <MoreVertical size={20} />
-                </button>
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </div>
       </section>
     </motion.div>
   );
 };
+

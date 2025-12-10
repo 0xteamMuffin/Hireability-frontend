@@ -2,6 +2,8 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +105,10 @@ export interface AnalysisDimension {
   score?: number | null;
   notes?: string | null;
   source?: string | null;
+  strengths?: string[];
+  weaknesses?: string[];
+  improvements?: string[];
+  summary?: string;
 }
 
 export interface SaveInterviewAnalysisPayload {
