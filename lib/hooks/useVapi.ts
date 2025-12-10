@@ -23,35 +23,64 @@ export const useVapi = ({ user }: UseVapiProps) => {
     const [callStartedAt, setCallStartedAt] = useState<Date | null>(null);
     const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
     const [interviewId, setInterviewId] = useState<string | null>(null);
+    const interviewIdRef = useRef<string | null>(null);
     const conversationRef = useRef<ConversationEntry[]>([]);
+    const userRef = useRef<User | null>(user);
+    const callStartedAtRef = useRef<Date | null>(null);
+    const activeAssistantIdRef = useRef<string | null>(null);
 
     const timeFormatter = useMemo(
         () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
         []
     );
 
+    // Keep refs in sync with state/props
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
+
     useEffect(() => {
         conversationRef.current = conversation;
     }, [conversation]);
 
-    const persistTranscript = async (endedAt: Date) => {
-        if (!user) return;
-        if (!conversationRef.current.length) return;
-        if (!interviewId) return;
+    useEffect(() => {
+        callStartedAtRef.current = callStartedAt;
+    }, [callStartedAt]);
 
-        const startedAt = callStartedAt;
+    useEffect(() => {
+        activeAssistantIdRef.current = activeAssistantId;
+    }, [activeAssistantId]);
+
+    const persistTranscript = async (endedAt: Date) => {
+        const iid = interviewIdRef.current;
+        const currentUser = userRef.current;
+        const startedAt = callStartedAtRef.current;
+        const assistantId = activeAssistantIdRef.current;
+
+        console.log('[persistTranscript] start', {
+            hasUser: !!currentUser,
+            interviewId: iid,
+            transcriptLines: conversationRef.current.length,
+        });
+
+        if (!currentUser) return;
+        if (!conversationRef.current.length) return;
+        if (!iid) return;
+
         const durationSeconds =
             startedAt != null ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;
 
-        await vapiApi.saveTranscript({
-            interviewId,
-            assistantId: activeAssistantId,
+        const resp = await vapiApi.saveTranscript({
+            interviewId: iid,
+            assistantId: assistantId,
             callId: null,
             startedAt: startedAt?.toISOString() || null,
             endedAt: endedAt.toISOString(),
             durationSeconds,
             transcript: conversationRef.current,
         });
+
+        console.log('[persistTranscript] response', resp);
     };
 
     // Initialize Vapi client
@@ -69,17 +98,41 @@ export const useVapi = ({ user }: UseVapiProps) => {
             setCallStatus('in-call');
             setVapiError(null);
             setConversation([]);
-            setCallStartedAt((prev) => prev || new Date());
+            const startTime = new Date();
+            setCallStartedAt(startTime);
+            callStartedAtRef.current = startTime;
         });
 
-        client.on('call-end', () => {
+        client.on('call-end', async () => {
+            console.log('[call-end] fired', { interviewId: interviewIdRef.current });
             setCallStatus('idle');
             setIsSpeaking(false);
             const endedAt = new Date();
-            persistTranscript(endedAt);
-            setCallStartedAt(null);
-            setActiveAssistantId(null);
-            setInterviewId(null);
+
+            if (!interviewIdRef.current) {
+                console.warn('[call-end] missing interviewId, skipping persist');
+                setCallStartedAt(null);
+                callStartedAtRef.current = null;
+                setActiveAssistantId(null);
+                activeAssistantIdRef.current = null;
+                setInterviewId(null);
+                interviewIdRef.current = null;
+                return;
+            }
+
+            try {
+                await persistTranscript(endedAt);
+            } catch (err) {
+                console.error('Failed to save transcript', err);
+                setVapiError('Failed to save transcript');
+            } finally {
+                setCallStartedAt(null);
+                callStartedAtRef.current = null;
+                setActiveAssistantId(null);
+                activeAssistantIdRef.current = null;
+                setInterviewId(null);
+                interviewIdRef.current = null;
+            }
         });
 
         client.on('speech-start', () => setIsSpeaking(true));
@@ -145,6 +198,7 @@ export const useVapi = ({ user }: UseVapiProps) => {
             return;
         }
         setActiveAssistantId(assistantId);
+        activeAssistantIdRef.current = assistantId;
 
         setCallStatus('connecting');
 
@@ -158,8 +212,12 @@ export const useVapi = ({ user }: UseVapiProps) => {
                 setVapiError(interviewResp.error || 'Failed to start interview session');
                 return;
             }
+            console.log('[startInterview] resp', interviewResp);
             setInterviewId(interviewResp.data.id);
-            setCallStartedAt(new Date(interviewResp.data.startedAt));
+            interviewIdRef.current = interviewResp.data.id;
+            const startTime = new Date(interviewResp.data.startedAt);
+            setCallStartedAt(startTime);
+            callStartedAtRef.current = startTime;
 
             await vapiClient.start(assistantId, {
                 variableValues: {
@@ -173,9 +231,12 @@ export const useVapi = ({ user }: UseVapiProps) => {
         }
     };
 
-    const stopInterview = () => {
-        vapiClient?.stop();
-        setCallStatus('idle');
+    const stopInterview = async () => {
+        try {
+            await vapiClient?.stop();
+        } finally {
+            setCallStatus('idle');
+        }
     };
 
     return {

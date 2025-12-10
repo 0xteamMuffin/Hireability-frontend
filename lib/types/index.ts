@@ -115,3 +115,33 @@ export interface SaveInterviewAnalysisPayload {
   overall?: AnalysisDimension;
   modelVersion?: string | null;
 }
+
+export interface InterviewWithAnalysis extends Interview {
+  analysis?: {
+    id: string;
+    interviewId: string;
+    technical?: AnalysisDimension | null;
+    problemSolving?: AnalysisDimension | null;
+    communication?: AnalysisDimension | null;
+    roleKnowledge?: AnalysisDimension | null;
+    experience?: AnalysisDimension | null;
+    professional?: AnalysisDimension | null;
+    overall?: AnalysisDimension | null;
+    modelVersion?: string | null;
+    createdAt: string;
+  } | null;
+  transcripts?: Array<{
+    id: string;
+    interviewId: string;
+    startedAt: string | null;
+    endedAt: string | null;
+    durationSeconds: number | null;
+    transcript: Array<{
+      role: string;
+      text: string;
+      timestamp?: string;
+      isFinal?: boolean;
+    }> | null;
+    createdAt: string;
+  }>;
+}

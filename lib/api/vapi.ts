@@ -5,6 +5,7 @@ import {
   StartInterviewPayload,
   Interview,
   SaveInterviewAnalysisPayload,
+  InterviewWithAnalysis,
 } from '../types';
 
 export const vapiApi = {
@@ -16,6 +17,12 @@ export const vapiApi = {
   },
   startInterview: (payload: StartInterviewPayload): Promise<ApiResponse<Interview>> => {
     return apiClient.post('/api/interviews', payload);
+  },
+  getInterviews: (): Promise<ApiResponse<InterviewWithAnalysis[]>> => {
+    return apiClient.get<InterviewWithAnalysis[]>('/api/interviews');
+  },
+  getInterviewById: (id: string): Promise<ApiResponse<InterviewWithAnalysis>> => {
+    return apiClient.get<InterviewWithAnalysis>(`/api/interviews/${id}`);
   },
   saveInterviewAnalysis: (
     payload: SaveInterviewAnalysisPayload

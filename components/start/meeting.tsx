@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState, useRef } from 'react';
 import { AlertCircle, Loader2, Radio } from 'lucide-react';
+import Link from 'next/link';
 import MeetingVideo from './meeting-video';
 import { useAuth } from '@/lib/hooks';
 import Transcriber from './transcriber';
@@ -24,25 +25,6 @@ const Meeting: React.FC = () => {
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const [orbScale, setOrbScale] = useState(1);
     const animationRef = useRef<number | null>(null);
-    const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
-    const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [vapiError, setVapiError] = useState<string | null>(null);
-    const [contextStatus, setContextStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-    const [context, setContext] = useState<VapiContext | null>(null);
-    const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-    const [callStartedAt, setCallStartedAt] = useState<Date | null>(null);
-    const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
-    const [interviewId, setInterviewId] = useState<string | null>(null);
-    const interviewIdRef = React.useRef<string | null>(null);
-    const conversationRef = React.useRef<ConversationEntry[]>([]);
-
-    const timeFormatter = useMemo(
-        () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
-        []
-    );
-
-    const currentTime = useTime();
 
     const {
         vapiClient,
@@ -56,9 +38,12 @@ const Meeting: React.FC = () => {
         stopInterview,
     } = useVapi({ user });
 
+    const currentTime = useTime();
+
     const toggleMic = () => setMicOn((prev) => !prev);
     const toggleCamera = () => setCameraOn((prev) => !prev);
 
+    // Animation effect for orb
     useEffect(() => {
         const animate = () => {
             if (isSpeaking) {
@@ -67,64 +52,6 @@ const Meeting: React.FC = () => {
                 setOrbScale(scale);
             } else {
                 setOrbScale(1);
-        const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
-        if (!apiKey) {
-            setVapiError('Missing NEXT_PUBLIC_VAPI_PUBLIC_KEY environment variable');
-            return;
-        }
-
-        const client = new Vapi(apiKey);
-        setVapiClient(client);
-
-        client.on('call-start', () => {
-            setCallStatus('in-call');
-            setVapiError(null);
-            setConversation([]);
-            setCallStartedAt((prev) => prev || new Date());
-        });
-
-        client.on('call-end', async () => {
-            console.log('[call-end] fired', { interviewId: interviewIdRef.current });
-            setCallStatus('idle');
-            setIsSpeaking(false);
-            const endedAt = new Date();
-
-            if (!interviewIdRef.current) {
-                console.warn('[call-end] missing interviewId, skipping persist');
-                setCallStartedAt(null);
-                setActiveAssistantId(null);
-                setInterviewId(null);
-                interviewIdRef.current = null;
-                return;
-            }
-
-            try {
-                await persistTranscript(endedAt);
-            } catch (err) {
-                console.error('Failed to save transcript', err);
-                setVapiError('Failed to save transcript');
-            } finally {
-                setCallStartedAt(null);
-                setActiveAssistantId(null);
-                setInterviewId(null);
-                interviewIdRef.current = null;
-            }
-        });
-
-        client.on('speech-start', () => setIsSpeaking(true));
-        client.on('speech-end', () => setIsSpeaking(false));
-
-        client.on('message', (message: any) => {
-            if (message.type === 'transcript' && message.transcriptType === 'final') {
-                setConversation((prev) => [
-                    ...prev,
-                    {
-                        role: message.role || 'assistant',
-                        text: message.transcript,
-                        timestamp: timeFormatter.format(new Date()),
-                        isFinal: true,
-                    },
-                ]);
             }
             animationRef.current = requestAnimationFrame(animate);
         };
@@ -135,115 +62,6 @@ const Meeting: React.FC = () => {
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
     }, [isSpeaking]);
-    }, []);
-
-    useEffect(() => {
-        conversationRef.current = conversation;
-    }, [conversation]);
-
-    const persistTranscript = async (endedAt: Date) => {
-        const iid = interviewIdRef.current;
-
-        console.log('[persistTranscript] start', {
-            hasUser: !!user,
-            interviewId: iid,
-            transcriptLines: conversationRef.current.length,
-        });
-
-        if (!user) return;
-        if (!conversationRef.current.length) return;
-        if (!iid) return;
-
-        const startedAt = callStartedAt;
-        const durationSeconds =
-            startedAt != null ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;
-
-        const resp = await vapiApi.saveTranscript({
-            interviewId: iid,
-            assistantId: activeAssistantId,
-            callId: null,
-            startedAt: startedAt?.toISOString() || null,
-            endedAt: endedAt.toISOString(),
-            durationSeconds,
-            transcript: conversationRef.current,
-        });
-
-        console.log('[persistTranscript] response', resp);
-    };
-
-    useEffect(() => {
-        if (!user) return;
-
-        const loadContext = async () => {
-            setContextStatus('loading');
-            const response = await vapiApi.getContext();
-            if (response.success && response.data) {
-                setContext(response.data);
-                setContextStatus('idle');
-            } else {
-                setContextStatus('error');
-                setVapiError(response.error || 'Failed to load interview context');
-            }
-        };
-
-        loadContext();
-    }, [user]);
-
-    const startInterview = async () => {
-        if (!user) {
-            setVapiError('Please sign in to start the interview.');
-            return;
-        }
-
-        if (!vapiClient) {
-            setVapiError('Voice client is not ready yet.');
-            return;
-        }
-
-        const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
-        if (!assistantId) {
-            setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID environment variable');
-            return;
-        }
-        setActiveAssistantId(assistantId);
-
-        setCallStatus('connecting');
-
-        try {
-            // Create interview record before starting the call
-            const interviewResp = await vapiApi.startInterview({
-                assistantId,
-                contextPrompt: context?.prompt || null,
-            });
-            console.log('[startInterview] resp', interviewResp);
-            if (!interviewResp.success || !interviewResp.data) {
-                setCallStatus('idle');
-                setVapiError(interviewResp.error || 'Failed to start interview session');
-                return;
-            }
-            setInterviewId(interviewResp.data.id);
-            interviewIdRef.current = interviewResp.data.id;
-            setCallStartedAt(new Date(interviewResp.data.startedAt));
-
-            await vapiClient.start(assistantId, {
-                variableValues: {
-                    userId: user.id,
-                    userContext: context?.prompt || null,
-                },
-            } as any);
-        } catch (error) {
-            setCallStatus('idle');
-            setVapiError(error instanceof Error ? error.message : 'Failed to start the interview');
-        }
-    };
-
-    const stopInterview = async () => {
-        try {
-            await vapiClient?.stop();
-        } finally {
-            setCallStatus('idle');
-        }
-    };
 
     if (permissionError) {
         return (
@@ -283,7 +101,6 @@ const Meeting: React.FC = () => {
 
             <div className="flex-1 flex relative p-4 gap-4 overflow-hidden">
                 <div className="flex-1 bg-[#3c4043] rounded-2xl flex items-center justify-center relative overflow-hidden ring-1 ring-white/10">
-                    
                     <VapiOrb isSpeaking={isSpeaking} orbScale={orbScale} />
 
                     <div className="absolute bottom-4 left-4 text-white font-medium text-sm bg-black/40 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/5">
