@@ -13,7 +13,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { documentApi } from "@/lib/api";
-import { generateResumeReview } from "@/lib/api/resume";
+// import { generateResumeReview } from "@/lib/api/resume";
 import ReactMarkdown from "react-markdown"; // Import React Markdown
 
 export const ResumeReviewPage = () => {
@@ -70,16 +70,16 @@ export const ResumeReviewPage = () => {
   };
 
   const handleAnalyze = async (data: any) => {
-    if (!data) return;
+    // if (!data) return; // Data might not be needed if backend handles it based on userId
     setIsAnalyzing(true);
 
     try {
-      const result = await generateResumeReview(data);
+      const result = await documentApi.getResumeReview();
       if (result.success && result.data) {
         setReview(result.data);
       } else {
         console.error("AI Error:", result.error);
-        alert("AI could not review the document. Check console for details.");
+        // alert("AI could not review the document. Check console for details.");
       }
     } catch (error) {
       console.error("Analysis failed:", error);

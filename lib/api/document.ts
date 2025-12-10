@@ -11,4 +11,8 @@ export const documentApi = {
   getResume: (): Promise<ApiResponse<Document>> => {
     return apiClient.get<Document>('/api/documents/resume');
   },
+
+  getResumeReview: (): Promise<ApiResponse<string>> => {
+    return apiClient.get<string>('/api/documents/resume/review');
+  },
 };
