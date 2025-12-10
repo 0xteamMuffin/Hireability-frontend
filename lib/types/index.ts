@@ -63,3 +63,55 @@ export interface VapiContext {
     confidence: number | null;
   } | null;
 }
+
+export interface SaveTranscriptPayload {
+  interviewId: string;
+  assistantId?: string | null;
+  callId?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+  transcript: Array<{
+    role: string;
+    text: string;
+    timestamp: string;
+    isFinal?: boolean;
+  }>;
+}
+
+export interface Interview {
+  id: string;
+  userId: string;
+  assistantId: string | null;
+  callId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  contextPrompt: string | null;
+  createdAt: string;
+}
+
+export interface StartInterviewPayload {
+  assistantId?: string | null;
+  callId?: string | null;
+  startedAt?: string | null;
+  contextPrompt?: string | null;
+}
+
+export interface AnalysisDimension {
+  score?: number | null;
+  notes?: string | null;
+  source?: string | null;
+}
+
+export interface SaveInterviewAnalysisPayload {
+  interviewId: string;
+  technical?: AnalysisDimension;
+  problemSolving?: AnalysisDimension;
+  communication?: AnalysisDimension;
+  roleKnowledge?: AnalysisDimension;
+  experience?: AnalysisDimension;
+  professional?: AnalysisDimension;
+  overall?: AnalysisDimension;
+  modelVersion?: string | null;
+}

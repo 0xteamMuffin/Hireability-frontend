@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     Mic,
     MicOff,
@@ -16,6 +16,7 @@ import MeetingVideo from './meeting-video';
 import { useAuth } from '@/lib/hooks';
 import { vapiApi } from '@/lib/api';
 import { VapiContext } from '@/lib/types';
+import Transcriber, { type ConversationEntry } from './transcriber';
 
 const useTime = () => {
     const [time, setTime] = useState(new Date());
@@ -39,7 +40,16 @@ const Meeting: React.FC = () => {
     const [vapiError, setVapiError] = useState<string | null>(null);
     const [contextStatus, setContextStatus] = useState<'idle' | 'loading' | 'error'>('idle');
     const [context, setContext] = useState<VapiContext | null>(null);
-    const [transcripts, setTranscripts] = useState<Array<{ role: string; text: string }>>([]);
+    const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+    const [callStartedAt, setCallStartedAt] = useState<Date | null>(null);
+    const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
+    const [interviewId, setInterviewId] = useState<string | null>(null);
+    const conversationRef = React.useRef<ConversationEntry[]>([]);
+
+    const timeFormatter = useMemo(
+        () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
+        []
+    );
 
     const currentTime = useTime();
 
@@ -59,19 +69,34 @@ const Meeting: React.FC = () => {
         client.on('call-start', () => {
             setCallStatus('in-call');
             setVapiError(null);
+            setConversation([]);
+            setCallStartedAt((prev) => prev || new Date());
         });
 
         client.on('call-end', () => {
             setCallStatus('idle');
             setIsSpeaking(false);
+            const endedAt = new Date();
+            persistTranscript(endedAt);
+            setCallStartedAt(null);
+            setActiveAssistantId(null);
+            setInterviewId(null);
         });
 
         client.on('speech-start', () => setIsSpeaking(true));
         client.on('speech-end', () => setIsSpeaking(false));
 
         client.on('message', (message: any) => {
-            if (message.type === 'transcript') {
-                setTranscripts((prev) => [...prev.slice(-10), { role: message.role, text: message.transcript }]);
+            if (message.type === 'transcript' && message.transcriptType === 'final') {
+                setConversation((prev) => [
+                    ...prev,
+                    {
+                        role: message.role || 'assistant',
+                        text: message.transcript,
+                        timestamp: timeFormatter.format(new Date()),
+                        isFinal: true,
+                    },
+                ]);
             }
         });
 
@@ -84,6 +109,30 @@ const Meeting: React.FC = () => {
             client.stop();
         };
     }, []);
+
+    useEffect(() => {
+        conversationRef.current = conversation;
+    }, [conversation]);
+
+    const persistTranscript = async (endedAt: Date) => {
+        if (!user) return;
+        if (!conversationRef.current.length) return;
+        if (!interviewId) return;
+
+        const startedAt = callStartedAt;
+        const durationSeconds =
+            startedAt != null ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;
+
+        await vapiApi.saveTranscript({
+            interviewId,
+            assistantId: activeAssistantId,
+            callId: null,
+            startedAt: startedAt?.toISOString() || null,
+            endedAt: endedAt.toISOString(),
+            durationSeconds,
+            transcript: conversationRef.current,
+        });
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -119,10 +168,24 @@ const Meeting: React.FC = () => {
             setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID environment variable');
             return;
         }
+        setActiveAssistantId(assistantId);
 
         setCallStatus('connecting');
 
         try {
+            // Create interview record before starting the call
+            const interviewResp = await vapiApi.startInterview({
+                assistantId,
+                contextPrompt: context?.prompt || null,
+            });
+            if (!interviewResp.success || !interviewResp.data) {
+                setCallStatus('idle');
+                setVapiError(interviewResp.error || 'Failed to start interview session');
+                return;
+            }
+            setInterviewId(interviewResp.data.id);
+            setCallStartedAt(new Date(interviewResp.data.startedAt));
+
             await vapiClient.start(assistantId, {
                 variableValues: {
                     userId: user.id,
@@ -234,22 +297,7 @@ const Meeting: React.FC = () => {
                     </div>
 
                     <div className="bg-[#202124] rounded-xl p-3 ring-1 ring-white/5 flex-1 flex flex-col">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-white/80">Live transcript</span>
-                            <span className="text-xs text-white/60">{transcripts.length} lines</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                            {transcripts.length === 0 ? (
-                                <p className="text-xs text-white/50">Transcripts will appear here.</p>
-                            ) : (
-                                transcripts.map((entry, idx) => (
-                                    <div key={`${entry.role}-${idx}`} className="text-xs bg-white/5 rounded-lg p-2">
-                                        <span className="font-semibold text-white/80 capitalize">{entry.role}: </span>
-                                        <span className="text-white/70">{entry.text}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                        <Transcriber conversation={conversation} />
                     </div>
 
                     {vapiError && (
