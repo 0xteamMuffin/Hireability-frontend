@@ -6,10 +6,11 @@ import {
   LayoutDashboard,
   BarChart2,
   History,
-  Target, // Imported Target icon
+  Target,
   Settings,
   User,
   LogOut,
+  FileText, // Imported FileText icon for Resume
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 
@@ -29,9 +30,14 @@ export const Sidebar = () => {
       icon: <BarChart2 size={20} />,
     },
     {
-      href: "/dashboard/target", // New Goals Route
+      href: "/dashboard/target",
       label: "Goals",
       icon: <Target size={20} />,
+    },
+    {
+      href: "/dashboard/resume", // New Resume Route
+      label: "Resume Review",
+      icon: <FileText size={20} />,
     },
     {
       href: "/dashboard/history",
@@ -46,7 +52,7 @@ export const Sidebar = () => {
   ];
 
   return (
-    <aside className="relative z-20 w-64 hidden md:flex flex-col border-r border-slate-200/60 bg-white/50 backdrop-blur-xl p-6 h-screen sticky top-0">
+    <aside className="relative z-20 w-64 hidden md:flex flex-col border-r border-slate-200/60 bg-white/50 backdrop-blur-xl p-6 h-screen top-0">
       {/* Logo */}
       <div className="flex items-center gap-2 mb-10 px-2">
         <div className="w-8 h-8 bg-indigo-400 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
