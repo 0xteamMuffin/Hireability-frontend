@@ -12,9 +12,9 @@ import {
   Code2,
   Cpu,
 } from "lucide-react";
-import { documentApi } from "@/lib/api";
+import { documentApi, targetApi } from "@/lib/api"; // Added targetApi import
 import { generateResumeReview } from "@/lib/api/resume";
-import ReactMarkdown from "react-markdown"; // Import React Markdown
+import ReactMarkdown from "react-markdown";
 
 export const ResumeReviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +34,13 @@ export const ResumeReviewPage = () => {
       if (response && response.success && response.data) {
         setResumeData(response.data);
         setHasResume(true);
-        handleAnalyze(response.data);
+        // We do NOT auto-analyze here anymore to save tokens/calls
+        // User must click "Analyze" to include fresh Target data
       } else {
         setHasResume(false);
       }
     } catch (error) {
-      console.log("No resume found or API error:", error);
+      console.log("No resume found", error);
       setHasResume(false);
     } finally {
       setIsLoading(false);
@@ -57,13 +58,14 @@ export const ResumeReviewPage = () => {
       if (response && response.success && response.data) {
         setResumeData(response.data);
         setHasResume(true);
+        // Trigger analysis after upload
         handleAnalyze(response.data);
       } else {
-        alert("Upload failed. Server returned unsuccessful response.");
+        alert("Upload failed.");
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Failed to upload resume. Please try again.");
+      alert("Failed to upload resume.");
     } finally {
       setIsUploading(false);
     }
@@ -74,16 +76,32 @@ export const ResumeReviewPage = () => {
     setIsAnalyzing(true);
 
     try {
-      const result = await generateResumeReview(data);
+      // 1. Fetch the user's Target Companies (Goals)
+      // We fetch this fresh every time to ensure the AI uses the latest goals
+      let targets: any[] = [];
+      try {
+        const targetResponse = await targetApi.getAll();
+        if (targetResponse.success && targetResponse.data) {
+          targets = targetResponse.data;
+        }
+      } catch (err) {
+        console.warn(
+          "Could not fetch targets, proceeding with general review."
+        );
+      }
+
+      // 2. Send Resume + Targets to AI Server Action
+      const result = await generateResumeReview(data, targets);
+
       if (result.success && result.data) {
         setReview(result.data);
       } else {
         console.error("AI Error:", result.error);
-        alert("AI could not review the document. Check console for details.");
+        alert("AI could not review the document.");
       }
     } catch (error) {
       console.error("Analysis failed:", error);
-      alert("An error occurred while connecting to the AI service.");
+      alert("An error occurred connecting to AI.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -109,7 +127,7 @@ export const ResumeReviewPage = () => {
             Resume Review
           </h1>
           <p className="text-slate-500 mt-1">
-            AI-powered insights to optimize your CV.
+            AI analysis based on your <strong>Goals</strong> and resume.
           </p>
         </div>
         {hasResume && (
@@ -128,8 +146,8 @@ export const ResumeReviewPage = () => {
             Upload your Resume
           </h2>
           <p className="text-slate-500 max-w-md mx-auto mb-8">
-            Upload your PDF or DOCX resume to get an instant AI evaluation and
-            score.
+            Upload your PDF or DOCX resume. We will analyze it against the
+            companies listed in your <strong>Goals</strong> section.
           </p>
 
           <div className="relative inline-block group">
@@ -208,7 +226,7 @@ export const ResumeReviewPage = () => {
                 ) : (
                   <RefreshCcw size={16} />
                 )}
-                Re-Analyze
+                Re-Analyze with Goals
               </button>
             </div>
 
@@ -233,8 +251,8 @@ export const ResumeReviewPage = () => {
                 <AlertCircle size={16} /> Pro Tip
               </h4>
               <p className="text-xs text-blue-600/80 leading-relaxed">
-                Tailor your resume keywords to the specific Job Description for
-                better ATS scores.
+                Add more companies to your <strong>Goals</strong> tab to get a
+                more tailored analysis.
               </p>
             </div>
           </div>
@@ -250,49 +268,42 @@ export const ResumeReviewPage = () => {
                     />
                   </div>
                   <h3 className="text-xl font-bold text-slate-800">
-                    Gemini is analyzing your data...
+                    Analyzing against your Goals...
                   </h3>
                   <p className="text-slate-500 mt-2">
-                    Evaluating skills, projects, and impact.
+                    Checking fit for your target companies.
                   </p>
                 </div>
               ) : review ? (
                 <div className="prose prose-slate prose-lg max-w-none">
-                  {/* --- UPDATED FORMATTING CODE --- */}
                   <ReactMarkdown
                     components={{
-                      h1: ({ node, ...props }) => (
-                        <h1
-                          className="text-2xl font-bold text-slate-800 mb-4 border-b pb-2"
-                          {...props}
-                        />
-                      ),
                       h2: ({ node, ...props }) => (
                         <h2
-                          className="text-xl font-bold text-indigo-600 mt-6 mb-3 flex items-center gap-2"
+                          className="text-2xl font-bold text-indigo-600 mt-8 mb-4 flex items-center gap-2 pb-2 border-b border-slate-100"
                           {...props}
                         />
                       ),
                       h3: ({ node, ...props }) => (
                         <h3
-                          className="text-lg font-semibold text-slate-700 mt-4 mb-2"
+                          className="text-lg font-bold text-slate-700 mt-6 mb-3"
                           {...props}
                         />
                       ),
                       p: ({ node, ...props }) => (
                         <p
-                          className="text-slate-600 mb-4 leading-relaxed"
+                          className="text-slate-600 mb-3 leading-relaxed text-sm md:text-base"
                           {...props}
                         />
                       ),
                       ul: ({ node, ...props }) => (
                         <ul
-                          className="list-disc list-inside space-y-2 mb-4 text-slate-600"
+                          className="list-disc list-inside space-y-2 mb-4 text-slate-600 ml-2"
                           {...props}
                         />
                       ),
                       li: ({ node, ...props }) => (
-                        <li className="ml-4" {...props} />
+                        <li className="ml-2 pl-2" {...props} />
                       ),
                       strong: ({ node, ...props }) => (
                         <span className="font-bold text-slate-800" {...props} />
@@ -301,7 +312,6 @@ export const ResumeReviewPage = () => {
                   >
                     {review}
                   </ReactMarkdown>
-                  {/* --- END FORMATTING CODE --- */}
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center py-20 text-slate-400">
