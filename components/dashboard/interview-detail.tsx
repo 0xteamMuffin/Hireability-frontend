@@ -36,12 +36,14 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
   weight,
   color,
 }) => {
-  const score = dimension && typeof dimension === 'object' && 'score' in dimension
-    ? dimension.score
-    : null;
-  const notes = dimension && typeof dimension === 'object' && 'notes' in dimension
-    ? dimension.notes
-    : null;
+  const score =
+    dimension && typeof dimension === "object" && "score" in dimension
+      ? dimension.score
+      : null;
+  const notes =
+    dimension && typeof dimension === "object" && "notes" in dimension
+      ? dimension.notes
+      : null;
 
   return (
     <motion.div
@@ -51,9 +53,7 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`p-2 ${color} rounded-lg text-white`}>
-            {icon}
-          </div>
+          <div className={`p-2 ${color} rounded-lg text-white`}>{icon}</div>
           <div>
             <h3 className="font-bold text-slate-800 text-lg">{title}</h3>
             <p className="text-xs text-slate-500">{weight} weight</p>
@@ -75,7 +75,9 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
         </div>
       )}
       {score === null && !notes && (
-        <p className="text-sm text-slate-400 italic">No analysis available yet</p>
+        <p className="text-sm text-slate-400 italic">
+          No analysis available yet
+        </p>
       )}
     </motion.div>
   );
@@ -119,7 +121,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
 }) => {
   const router = useRouter();
   const { user } = useAuth();
-  const [interview, setInterview] = useState<InterviewWithAnalysis | null>(null);
+  const [interview, setInterview] = useState<InterviewWithAnalysis | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +141,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
           setError(response.error || "Failed to load interview");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load interview");
+        setError(
+          err instanceof Error ? err.message : "Failed to load interview"
+        );
       } finally {
         setLoading(false);
       }
@@ -157,7 +163,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
   if (error || !interview) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-        <div className="text-red-500 mb-2">{error || "Interview not found"}</div>
+        <div className="text-red-500 mb-2">
+          {error || "Interview not found"}
+        </div>
         <button
           onClick={() => router.back()}
           className="text-indigo-400 hover:text-indigo-500"
@@ -170,9 +178,12 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
 
   const companyName = getCompanyFromContext(interview.contextPrompt);
   const role = getRoleFromContext(interview.contextPrompt);
-  const overallScore = interview.analysis?.overall && typeof interview.analysis.overall === 'object' && 'score' in interview.analysis.overall
-    ? interview.analysis.overall.score
-    : null;
+  const overallScore =
+    interview.analysis?.overall &&
+    typeof interview.analysis.overall === "object" &&
+    "score" in interview.analysis.overall
+      ? interview.analysis.overall.score
+      : null;
 
   const dimensions = [
     {
@@ -238,7 +249,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-1">
             Interview Details
           </h1>
-          <p className="text-slate-500">{role} at {companyName}</p>
+          <p className="text-slate-500">
+            {role} at {companyName}
+          </p>
         </div>
       </div>
 
@@ -251,9 +264,13 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
         >
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold mb-2">Overall Performance</h2>
+              <h2 className="text-lg font-semibold mb-2">
+                Overall Performance
+              </h2>
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold">{overallScore.toFixed(1)}</span>
+                <span className="text-5xl font-bold">
+                  {overallScore.toFixed(1)}
+                </span>
                 <span className="text-2xl opacity-90">/10</span>
               </div>
             </div>
@@ -305,7 +322,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
 
       {/* Analysis Dimensions */}
       <section>
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Performance Breakdown</h2>
+        <h2 className="text-2xl font-bold text-slate-800 mb-6">
+          Performance Breakdown
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {dimensions.map((dim, idx) => (
             <DimensionCard key={idx} {...dim} />
@@ -318,10 +337,16 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
         <section>
           <h2 className="text-2xl font-bold text-slate-800 mb-4">Transcript</h2>
           <div className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-6 max-h-96 overflow-y-auto">
-            {interview.transcripts[0].transcript && 
-             Array.isArray(interview.transcripts[0].transcript) ? (
+            {interview.transcripts[0].transcript &&
+            Array.isArray(interview.transcripts[0].transcript) ? (
               <div className="space-y-4">
-                {(interview.transcripts[0].transcript as Array<{ role: string; text: string; timestamp?: string }>).map((entry, idx) => (
+                {(
+                  interview.transcripts[0].transcript as Array<{
+                    role: string;
+                    text: string;
+                    timestamp?: string;
+                  }>
+                ).map((entry, idx) => (
                   <div
                     key={idx}
                     className={`p-3 rounded-lg ${
@@ -335,7 +360,9 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
                         {entry.role === "user" ? "You" : "Interviewer"}
                       </span>
                       {entry.timestamp && (
-                        <span className="text-xs text-slate-400">{entry.timestamp}</span>
+                        <span className="text-xs text-slate-400">
+                          {entry.timestamp}
+                        </span>
                       )}
                     </div>
                     <p className="text-slate-700">{entry.text}</p>
@@ -351,4 +378,3 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
     </motion.div>
   );
 };
-
