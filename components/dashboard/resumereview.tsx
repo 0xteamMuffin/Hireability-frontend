@@ -12,9 +12,9 @@ import {
   Code2,
   Cpu,
 } from "lucide-react";
-import { documentApi, targetApi } from "@/lib/api"; // Added targetApi import
-import { generateResumeReview } from "@/lib/api/resume";
-import ReactMarkdown from "react-markdown";
+import { documentApi } from "@/lib/api";
+// import { generateResumeReview } from "@/lib/api/resume";
+import ReactMarkdown from "react-markdown"; // Import React Markdown
 
 export const ResumeReviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -72,32 +72,16 @@ export const ResumeReviewPage = () => {
   };
 
   const handleAnalyze = async (data: any) => {
-    if (!data) return;
+    // if (!data) return; // Data might not be needed if backend handles it based on userId
     setIsAnalyzing(true);
 
     try {
-      // 1. Fetch the user's Target Companies (Goals)
-      // We fetch this fresh every time to ensure the AI uses the latest goals
-      let targets: any[] = [];
-      try {
-        const targetResponse = await targetApi.getAll();
-        if (targetResponse.success && targetResponse.data) {
-          targets = targetResponse.data;
-        }
-      } catch (err) {
-        console.warn(
-          "Could not fetch targets, proceeding with general review."
-        );
-      }
-
-      // 2. Send Resume + Targets to AI Server Action
-      const result = await generateResumeReview(data, targets);
-
+      const result = await documentApi.getResumeReview();
       if (result.success && result.data) {
         setReview(result.data);
       } else {
         console.error("AI Error:", result.error);
-        alert("AI could not review the document.");
+        // alert("AI could not review the document. Check console for details.");
       }
     } catch (error) {
       console.error("Analysis failed:", error);

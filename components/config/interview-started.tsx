@@ -6,6 +6,7 @@ import Link from "next/link";
 
 interface InterviewStartBarProps {
   selectedCompany: {
+    id: string;
     companyName: string;
     companyEmail: string;
     role: string;
@@ -68,7 +69,7 @@ export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
           </div>
         </div>
 
-        <Link href="/start">
+        <Link href={`/start?targetId=${selectedCompany.id}`}>
           <button className="bg-indigo-400 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap">
             Start Interview
             <Play

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -13,12 +13,62 @@ import {
   Trash2,
   Camera,
   Save,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "@/lib/hooks";
+import { profileApi, settingsApi } from "@/lib/api";
 
 export const SettingsPage = () => {
-  // Mock State for Toggles
+  const { user, isLoading } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const res = await profileApi.get();
+      if (res.success && res.data) {
+        setProfile(res.data);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    try {
+      const res = await settingsApi.updateUserDetails(formData);
+      if (res.success) {
+        alert("Profile updated successfully!");
+      } else {
+        alert("Failed to update profile.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred.");
+    }
+  };
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="animate-spin text-indigo-400" size={40} />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -53,14 +103,14 @@ export const SettingsPage = () => {
         </div>
 
         <div className="text-center md:text-left flex-1">
-          <h2 className="text-2xl font-bold text-slate-800">John Doe</h2>
-          <p className="text-slate-500">FullStack Developer • Free Plan</p>
+          <h2 className="text-2xl font-bold text-slate-800">{user.firstName} {user.lastName}</h2>
+          <p className="text-slate-500">{profile?.targetRole || "Role not set"} • Free Plan</p>
           <div className="flex flex-wrap gap-2 justify-center md:justify-start mt-3">
             <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-500 text-xs font-semibold border border-indigo-100">
-              @johndoe
+              @{user.username}
             </span>
             <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-semibold border border-slate-200">
-              Member since 2024
+              Member since {new Date(user.createdAt).getFullYear()}
             </span>
           </div>
         </div>
@@ -88,7 +138,8 @@ export const SettingsPage = () => {
                   </label>
                   <input
                     type="text"
-                    defaultValue="John"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all"
                   />
                 </div>
@@ -98,7 +149,8 @@ export const SettingsPage = () => {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Doe"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                     className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all"
                   />
                 </div>
@@ -112,8 +164,9 @@ export const SettingsPage = () => {
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="email"
-                    defaultValue="john.doe@example.com"
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all"
+                    value={user.email}
+                    readOnly
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-500 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -125,12 +178,16 @@ export const SettingsPage = () => {
                 <textarea
                   rows={3}
                   className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all resize-none"
-                  defaultValue="Passionate developer preparing for big tech interviews."
+                  placeholder="Tell us about yourself..."
                 />
               </div>
 
               <div className="flex justify-end pt-2">
-                <button className="bg-indigo-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all flex items-center gap-2">
+                <button 
+                  onClick={handleSave}
+                  type="button"
+                  className="bg-indigo-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all flex items-center gap-2"
+                >
                   <Save size={18} /> Save Changes
                 </button>
               </div>

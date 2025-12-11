@@ -44,6 +44,22 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
     dimension && typeof dimension === "object" && "notes" in dimension
       ? dimension.notes
       : null;
+  const summary =
+    dimension && typeof dimension === "object" && "summary" in dimension
+      ? dimension.summary
+      : null;
+  const strengths =
+    dimension && typeof dimension === "object" && "strengths" in dimension
+      ? (dimension.strengths as string[])
+      : [];
+  const weaknesses =
+    dimension && typeof dimension === "object" && "weaknesses" in dimension
+      ? (dimension.weaknesses as string[])
+      : [];
+  const improvements =
+    dimension && typeof dimension === "object" && "improvements" in dimension
+      ? (dimension.improvements as string[])
+      : [];
 
   return (
     <motion.div
@@ -59,22 +75,69 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
             <p className="text-xs text-slate-500">{weight} weight</p>
           </div>
         </div>
-        {score !== null && (
+        {score !== null && score !== undefined && (
           <div className="flex items-center gap-2">
             <Award className="text-yellow-500" size={20} />
             <span className="text-2xl font-bold text-slate-800">
               {score.toFixed(1)}
             </span>
-            <span className="text-sm text-slate-500">/10</span>
+            <span className="text-sm text-slate-500">/100</span>
           </div>
         )}
       </div>
-      {notes && (
+
+      {summary && (
+        <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+          <p className="text-sm text-slate-700 leading-relaxed">{summary}</p>
+        </div>
+      )}
+
+      {notes && !summary && (
         <div className="mt-4 p-3 bg-slate-50 rounded-lg">
           <p className="text-sm text-slate-700 leading-relaxed">{notes}</p>
         </div>
       )}
-      {score === null && !notes && (
+
+      {strengths && strengths.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">
+            Strengths
+          </h4>
+          <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+            {strengths.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {weaknesses && weaknesses.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">
+            Weaknesses
+          </h4>
+          <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+            {weaknesses.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {improvements && improvements.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-2">
+            Improvements
+          </h4>
+          <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+            {improvements.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {score === null && !notes && !summary && (
         <p className="text-sm text-slate-400 italic">
           No analysis available yet
         </p>
@@ -126,6 +189,24 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const handleRetryAnalysis = async () => {
+    try {
+      setAnalyzing(true);
+      const response = await vapiApi.analyzeInterview(interviewId);
+      if (response.success) {
+        const refresh = await vapiApi.getInterviewById(interviewId);
+        if (refresh.success && refresh.data) {
+          setInterview(refresh.data);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     // AuthGuard handles redirect, but we still check here for safety
@@ -238,25 +319,41 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
       className="space-y-8"
     >
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.back()}
-          className="p-2 hover:bg-white/60 rounded-lg transition-colors"
-        >
-          <ArrowLeft size={20} className="text-slate-600" />
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-1">
-            Interview Details
-          </h1>
-          <p className="text-slate-500">
-            {role} at {companyName}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-white/60 rounded-lg transition-colors"
+          >
+            <ArrowLeft size={20} className="text-slate-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-1">
+              Interview Details
+            </h1>
+            <p className="text-slate-500">
+              {role} at {companyName}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={handleRetryAnalysis}
+          disabled={analyzing}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+        >
+          {analyzing ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            <Lightbulb size={18} />
+          )}
+          <span className="font-medium">
+            {analyzing ? "Analyzing..." : "Generate Analysis"}
+          </span>
+        </button>
       </div>
 
       {/* Overall Score Card */}
-      {overallScore !== null && (
+      {overallScore !== null && overallScore !== undefined && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -271,7 +368,7 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
                 <span className="text-5xl font-bold">
                   {overallScore.toFixed(1)}
                 </span>
-                <span className="text-2xl opacity-90">/10</span>
+                <span className="text-2xl opacity-90">/100</span>
               </div>
             </div>
             <div className="flex items-center gap-2">

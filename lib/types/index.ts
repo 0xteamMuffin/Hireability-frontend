@@ -2,6 +2,8 @@ export interface User {
   id: string;
   email: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,7 +52,8 @@ export interface Document {
 }
 
 export interface VapiContext {
-  prompt: string;
+  systemPrompt: string;
+  firstMessage: string;
   profile: {
     targetRole: string | null;
     targetCompany: string | null;
@@ -59,7 +62,7 @@ export interface VapiContext {
   resume: {
     fileName: string;
     status: string;
-    parsedData: Record<string, unknown> | null;
+    parsedData: any;
     confidence: number | null;
   } | null;
 }
@@ -102,6 +105,10 @@ export interface AnalysisDimension {
   score?: number | null;
   notes?: string | null;
   source?: string | null;
+  strengths?: string[];
+  weaknesses?: string[];
+  improvements?: string[];
+  summary?: string;
 }
 
 export interface SaveInterviewAnalysisPayload {
