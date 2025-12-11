@@ -269,7 +269,7 @@ export const Analytics = () => {
                           <div className="flex items-center gap-2 mt-1">
                             <Award size={14} className="text-yellow-500" />
                             <span className="text-sm font-semibold text-slate-700">
-                              Score: {overallScore.toFixed(1)}/10
+                              Score: {overallScore.toFixed(1)}/100
                             </span>
                           </div>
                         )}

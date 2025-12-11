@@ -39,11 +39,11 @@ export const Sidebar = () => {
       label: "Resume Review",
       icon: <FileText size={20} />,
     },
-    {
-      href: "/dashboard/history",
-      label: "History",
-      icon: <History size={20} />,
-    },
+    // {
+    //   href: "/dashboard/history",
+    //   label: "History",
+    //   icon: <History size={20} />,
+    // },
     {
       href: "/dashboard/settings",
       label: "Profile",
