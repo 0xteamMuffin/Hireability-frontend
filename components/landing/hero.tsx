@@ -1,14 +1,6 @@
 "use client";
 import { motion, Variants } from "framer-motion";
 
-const ImagePlaceholder = ({ height = "h-64", text = "Image" }) => (
-  <div
-    className={`w-full ${height} bg-slate-50/50 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-200`}
-  >
-    <span>{text} Placeholder</span>
-  </div>
-);
-
 export const Hero = () => {
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -126,9 +118,11 @@ export const Hero = () => {
             animate="animate"
             className="relative mx-auto max-w-5xl rounded-2xl shadow-2xl shadow-slate-200/50 border border-white/80 bg-white/40 backdrop-blur-xl p-2 md:p-4"
           >
-            <ImagePlaceholder
-              height="h-[300px] md:h-[500px]"
-              text="Main Dashboard UI"
+            {/* UPDATED: Real Image from Public Folder */}
+            <img
+              src="/screenshots/realdash1.png"
+              alt="HireAbility Dashboard Interface"
+              className="w-full h-auto rounded-xl shadow-sm"
             />
           </motion.div>
         </motion.div>
