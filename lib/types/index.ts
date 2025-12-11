@@ -42,13 +42,14 @@ export interface ProfilePayload {
 
 export interface Document {
   id: string;
-  type: 'RESUME' | 'JOB_DESCRIPTION' | 'OTHER';
+  type: "RESUME" | "JOB_DESCRIPTION" | "OTHER";
   fileName: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   parsedData: Record<string, unknown> | null;
   confidence: number | null;
   processedAt: string | null;
   createdAt: string;
+  analysis?: any;
 }
 
 export interface VapiContext {
