@@ -1,5 +1,6 @@
 "use client";
 import { motion, Variants } from "framer-motion";
+import Link from "next/link";
 
 export const Hero = () => {
   const containerVariants: Variants = {
@@ -102,13 +103,15 @@ export const Hero = () => {
           variants={itemVariants}
           className="flex flex-col sm:flex-row justify-center gap-4 mb-20"
         >
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-indigo-400 text-white px-8 py-3.5 rounded-full font-semibold shadow-lg shadow-slate-200 hover:bg-indigo-500 transition-colors text-lg"
-          >
-            Get Started Now
-          </motion.button>
+          <Link href={"/signup"}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-indigo-400 text-white px-8 py-3.5 rounded-full font-semibold shadow-lg shadow-slate-200 hover:bg-indigo-500 transition-colors text-lg"
+            >
+              Get Started Now
+            </motion.button>
+          </Link>
         </motion.div>
 
         {/* Dashboard Image with Floating Animation */}
