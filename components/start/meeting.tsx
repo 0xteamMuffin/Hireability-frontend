@@ -1,7 +1,6 @@
 "use client"
 import React, { useEffect, useState, useRef } from 'react';
 import { AlertCircle, Loader2, Radio } from 'lucide-react';
-import Link from 'next/link';
 import MeetingVideo from './meeting-video';
 import { useAuth } from '@/lib/hooks';
 import Transcriber from './transcriber';
@@ -29,6 +28,7 @@ const Meeting: React.FC = () => {
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const [orbScale, setOrbScale] = useState(1);
     const animationRef = useRef<number | null>(null);
+    const hasStartedRef = useRef(false); // Track if interview has been started
 
     const {
         vapiClient,
@@ -46,6 +46,14 @@ const Meeting: React.FC = () => {
 
     const toggleMic = () => setMicOn((prev) => !prev);
     const toggleCamera = () => setCameraOn((prev) => !prev);
+
+    // Auto-start interview only once when component mounts
+    useEffect(() => {
+        if (vapiClient && callStatus === 'idle' && contextStatus !== 'loading' && !vapiError && !hasStartedRef.current) {
+            hasStartedRef.current = true;
+            startInterview();
+        }
+    }, [vapiClient, callStatus, contextStatus, vapiError, startInterview]);
 
     // Animation effect for orb
     useEffect(() => {
@@ -90,6 +98,19 @@ const Meeting: React.FC = () => {
                 >
                     Refresh Page
                 </button>
+            </div>
+        );
+    }
+
+    // Show loading screen while connecting
+    if (callStatus !== 'in-call') {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-[#202124] text-white">
+                <Loader2 size={48} className="animate-spin text-indigo-400 mb-4" />
+                <p className="text-lg text-white/80">Connecting to interview...</p>
+                {vapiError && (
+                    <p className="text-sm text-red-400 mt-2">{vapiError}</p>
+                )}
             </div>
         );
     }
