@@ -87,6 +87,7 @@ export const DashboardHome = () => {
 
   const getScore = (interview: InterviewWithAnalysis) => {
     if (interview.analysis?.overall && typeof interview.analysis.overall === 'object' && 'score' in interview.analysis.overall) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (interview.analysis.overall as any).score;
     }
     return null;

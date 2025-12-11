@@ -510,6 +510,7 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
           
           <div className="p-6 max-h-[600px] overflow-y-auto space-y-6 bg-slate-50/30">
             {Array.isArray(interview.transcripts[0].transcript) && (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (interview.transcripts[0].transcript as any[]).map((entry, idx) => {
                 const isUser = entry.role === "user";
                 return (
