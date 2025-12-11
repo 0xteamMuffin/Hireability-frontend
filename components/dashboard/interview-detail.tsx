@@ -19,13 +19,13 @@ import {
   AlertTriangle,
   Zap,
   Sparkles,
+  Info, // Added Info icon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { vapiApi } from "@/lib/api";
 import { InterviewWithAnalysis, AnalysisDimension } from "@/lib/types";
 import { useAuth } from "@/lib/hooks";
-
 
 interface DimensionCardProps {
   title: string;
@@ -34,6 +34,7 @@ interface DimensionCardProps {
   weight: string;
   color: string;
   gradient: string;
+  calculationLogic: string; // New prop for the tooltip text
 }
 
 const CircularProgress: React.FC<{
@@ -198,7 +199,9 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
   dimension,
   weight,
   gradient,
+  calculationLogic,
 }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
   const score = dimension?.score ?? null;
   const summary = dimension?.summary || dimension?.notes;
   const strengths = (dimension?.strengths as string[]) || [];
@@ -206,17 +209,17 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
   const improvements = (dimension?.improvements as string[]) || [];
 
   const getScoreColor = (s: number) => {
-    if (s >= 80) return "#10b981"; 
+    if (s >= 80) return "#10b981";
     if (s >= 60) return "#f59e0b";
-    if (s >= 40) return "#f97316"; 
-    return "#ef4444"; 
+    if (s >= 40) return "#f97316";
+    return "#ef4444";
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group"
+      className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group relative"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
@@ -225,7 +228,38 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
             {icon}
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-lg">{title}</h3>
+            <div className="flex items-center gap-2 relative">
+              <h3 className="font-bold text-slate-800 text-lg">{title}</h3>
+              
+              {/* Tooltip Wrapper */}
+              <div 
+                className="relative cursor-help"
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+              >
+                <Info size={16} className="text-slate-400 hover:text-indigo-500 transition-colors" />
+                
+                {/* Tooltip Content */}
+                <AnimatePresence>
+                  {showTooltip && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-3 bg-slate-800 text-white text-xs rounded-xl shadow-xl z-50 pointer-events-none"
+                    >
+                      <div className="relative z-10 font-medium leading-relaxed text-center">
+                        {calculationLogic}
+                      </div>
+                      {/* Tooltip Arrow */}
+                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-slate-800 rotate-45" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
             <p className="text-xs font-medium text-slate-400 bg-slate-100 inline-block px-2 py-0.5 rounded-full mt-1">
               Weight: {weight}
             </p>
@@ -349,12 +383,60 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
   const overallScore = interview.analysis?.overall?.score ?? null;
 
   const dimensions = [
-    { title: "Problem Solving", icon: <Lightbulb size={20} />, dimension: interview.analysis?.problemSolving, weight: "20%", color: "#3b82f6", gradient: "bg-gradient-to-br from-blue-400 to-blue-600" },
-    { title: "Technical Skills", icon: <Code size={20} />, dimension: interview.analysis?.technical, weight: "20%", color: "#a855f7", gradient: "bg-gradient-to-br from-purple-400 to-purple-600" },
-    { title: "Role Knowledge", icon: <Briefcase size={20} />, dimension: interview.analysis?.roleKnowledge, weight: "20%", color: "#22c55e", gradient: "bg-gradient-to-br from-green-400 to-green-600" },
-    { title: "Experience", icon: <TrendingUp size={20} />, dimension: interview.analysis?.experience, weight: "15%", color: "#f97316", gradient: "bg-gradient-to-br from-orange-400 to-orange-600" },
-    { title: "Communication", icon: <MessageSquare size={20} />, dimension: interview.analysis?.communication, weight: "15%", color: "#ec4899", gradient: "bg-gradient-to-br from-pink-400 to-pink-600" },
-    { title: "Professionalism", icon: <User size={20} />, dimension: interview.analysis?.professional, weight: "10%", color: "#6366f1", gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600" },
+    { 
+        title: "Problem Solving", 
+        icon: <Lightbulb size={20} />, 
+        dimension: interview.analysis?.problemSolving, 
+        weight: "20%", 
+        color: "#3b82f6", 
+        gradient: "bg-gradient-to-br from-blue-400 to-blue-600",
+        calculationLogic: "Evaluated based on the user's responses to problem scenarios provided."
+    },
+    { 
+        title: "Technical Skills", 
+        icon: <Code size={20} />, 
+        dimension: interview.analysis?.technical, 
+        weight: "20%", 
+        color: "#a855f7", 
+        gradient: "bg-gradient-to-br from-purple-400 to-purple-600",
+        calculationLogic: "Evaluated based on the accuracy and depth of technical responses given by the user."
+    },
+    { 
+        title: "Role Knowledge", 
+        icon: <Briefcase size={20} />, 
+        dimension: interview.analysis?.roleKnowledge, 
+        weight: "20%", 
+        color: "#22c55e", 
+        gradient: "bg-gradient-to-br from-green-400 to-green-600",
+        calculationLogic: "Calculated by checking role knowledge against the specific context and job applied for."
+    },
+    { 
+        title: "Experience", 
+        icon: <TrendingUp size={20} />, 
+        dimension: interview.analysis?.experience, 
+        weight: "15%", 
+        color: "#f97316", 
+        gradient: "bg-gradient-to-br from-orange-400 to-orange-600",
+        calculationLogic: "Assessed by cross-referencing the resume details with experience mentioned during the talk."
+    },
+    { 
+        title: "Communication", 
+        icon: <MessageSquare size={20} />, 
+        dimension: interview.analysis?.communication, 
+        weight: "15%", 
+        color: "#ec4899", 
+        gradient: "bg-gradient-to-br from-pink-400 to-pink-600",
+        calculationLogic: "Analyzed through voice processing, clarity, and articulation evaluation."
+    },
+    { 
+        title: "Professionalism", 
+        icon: <User size={20} />, 
+        dimension: interview.analysis?.professional, 
+        weight: "10%", 
+        color: "#6366f1", 
+        gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600",
+        calculationLogic: "Determined by evaluating expression usage."
+    },
   ];
 
   return (
@@ -415,7 +497,7 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
 
                 {overallScore !== null && (
                     <div className="flex flex-col items-center">
-                         <div className="relative">
+                          <div className="relative">
                             <svg className="w-40 h-40 transform -rotate-90">
                                 <circle cx="80" cy="80" r="70" fill="transparent" stroke="rgba(255,255,255,0.2)" strokeWidth="12" />
                                 <motion.circle
