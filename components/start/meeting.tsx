@@ -9,6 +9,7 @@ import MeetingControls from './ui/metting-controls';
 import { useVapi } from '@/lib/hooks/useVapi';
 import { useSearchParams } from 'next/navigation';
 
+
 const useTime = () => {
     const [time, setTime] = useState(new Date());
     useEffect(() => {
@@ -28,7 +29,26 @@ const Meeting: React.FC = () => {
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const [orbScale, setOrbScale] = useState(1);
     const animationRef = useRef<number | null>(null);
-    const hasStartedRef = useRef(false); // Track if interview has been started
+    const hasStartedRef = useRef(false);
+    
+    // Expression tracking
+    const expressionDataRef = useRef<{
+        angry: number[];
+        sad: number[];
+        happy: number[];
+        neutral: number[];
+        surprised: number[];
+        fearful: number[];
+        disgusted: number[];
+    }>({
+        angry: [],
+        sad: [],
+        happy: [],
+        neutral: [],
+        surprised: [],
+        fearful: [],
+        disgusted: [],
+    });
 
     const {
         vapiClient,
@@ -46,6 +66,53 @@ const Meeting: React.FC = () => {
 
     const toggleMic = () => setMicOn((prev) => !prev);
     const toggleCamera = () => setCameraOn((prev) => !prev);
+
+    // Handle expression data from facial detector
+    const handleExpressionChange = (expressions: Record<string, number>) => {
+        Object.entries(expressions).forEach(([emotion, value]) => {
+            if (emotion in expressionDataRef.current) {
+                expressionDataRef.current[emotion as keyof typeof expressionDataRef.current].push(value);
+            }
+        });
+    };
+
+    // Calculate and log average expressions when call ends
+    const logAverageExpressions = () => {
+        const averages: Record<string, number> = {};
+        
+        Object.entries(expressionDataRef.current).forEach(([emotion, values]) => {
+            if (values.length > 0) {
+                const sum = values.reduce((acc, val) => acc + val, 0);
+                averages[emotion] = Math.round((sum / values.length) * 100) / 100;
+            } else {
+                averages[emotion] = 0;
+            }
+        });
+
+        console.log('📊 INTERVIEW ENDED - Average Expression Values:');
+        console.log(averages);
+        console.log(`📈 Total samples collected: ${expressionDataRef.current.happy.length}`);
+        
+        // Reset data for next interview
+        expressionDataRef.current = {
+            angry: [],
+            sad: [],
+            happy: [],
+            neutral: [],
+            surprised: [],
+            fearful: [],
+            disgusted: [],
+        };
+    };
+
+    // Track call status changes to detect when call ends
+    const prevCallStatusRef = useRef(callStatus);
+    useEffect(() => {
+        if (prevCallStatusRef.current === 'in-call' && callStatus === 'idle') {
+            logAverageExpressions();
+        }
+        prevCallStatusRef.current = callStatus;
+    }, [callStatus]);
 
     // Auto-start interview only once when component mounts
     useEffect(() => {
@@ -137,6 +204,7 @@ const Meeting: React.FC = () => {
                             micOn={micOn}
                             setPermissionError={setPermissionError}
                             userInitial={user?.username?.[0]?.toUpperCase() || 'Y'}
+                            onExpressionChange={handleExpressionChange}
                         />
                     </div>
                 </div>
