@@ -5,7 +5,7 @@ import * as faceapi from 'face-api.js';
 interface FacialDetectorProps {
     videoRef: React.RefObject<HTMLVideoElement>;
     isActive: boolean;
-    onExpressionChange?: (expression: string) => void;
+    onExpressionChange?: (expressions: Record<string, number>) => void;
     detectionInterval?: number;
 }
 
@@ -78,15 +78,26 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
                     
                     console.log("📊 Expression Values:", expressionPercentages);
                     
+                    // Send raw values (0-1) to parent for averaging
+                    const rawExpressions = {
+                        angry: expressions.angry,
+                        sad: expressions.sad,
+                        happy: expressions.happy,
+                        neutral: expressions.neutral,
+                        surprised: expressions.surprised,
+                        fearful: expressions.fearful,
+                        disgusted: expressions.disgusted,
+                    };
+                    
+                    onExpressionChange?.(rawExpressions);
+                    
                     // dominant expression
                     const sorted = Object.keys(expressions).sort(
                         (a, b) => Number(expressions[b as keyof typeof expressions]) - Number(expressions[a as keyof typeof expressions])
                     );
                     
                     const dominantExpression = sorted[0];
-                    console.log("🎭 Dominant Expression:", dominantExpression);
-                    
-                    onExpressionChange?.(dominantExpression);
+                    console.log(" Dominant Expression:", dominantExpression);
 
                     if (canvasRef.current) {
                         const canvas = canvasRef.current;
