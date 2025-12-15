@@ -8,6 +8,7 @@ import VapiOrb from './ui/vapi-orb';
 import MeetingControls from './ui/metting-controls';
 import { useVapi } from '@/lib/hooks/useVapi';
 import { useSearchParams } from 'next/navigation';
+import CodeEditor from './code-editor';
 
 
 const useTime = () => {
@@ -260,6 +261,8 @@ const Meeting: React.FC = () => {
                 onStartInterview={startInterview}
                 onStopInterview={stopInterview}
             />
+
+            <CodeEditor />
         </div>
     );
 };
