@@ -1,13 +1,6 @@
 "use client";
 import { motion, Variants } from "framer-motion";
-
-const ImagePlaceholder = ({ height = "h-64", text = "Image" }) => (
-  <div
-    className={`w-full ${height} bg-slate-50/50 backdrop-blur-sm rounded-xl flex items-center justify-center text-slate-400 border-2 border-dashed border-slate-200`}
-  >
-    <span>{text} Placeholder</span>
-  </div>
-);
+import Link from "next/link";
 
 export const Hero = () => {
   const containerVariants: Variants = {
@@ -110,13 +103,15 @@ export const Hero = () => {
           variants={itemVariants}
           className="flex flex-col sm:flex-row justify-center gap-4 mb-20"
         >
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-indigo-400 text-white px-8 py-3.5 rounded-full font-semibold shadow-lg shadow-slate-200 hover:bg-indigo-500 transition-colors text-lg"
-          >
-            Get Started Now
-          </motion.button>
+          <Link href={"/signup"}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-indigo-400 text-white px-8 py-3.5 rounded-full font-semibold shadow-lg shadow-slate-200 hover:bg-indigo-500 transition-colors text-lg"
+            >
+              Get Started Now
+            </motion.button>
+          </Link>
         </motion.div>
 
         {/* Dashboard Image with Floating Animation */}
@@ -126,9 +121,11 @@ export const Hero = () => {
             animate="animate"
             className="relative mx-auto max-w-5xl rounded-2xl shadow-2xl shadow-slate-200/50 border border-white/80 bg-white/40 backdrop-blur-xl p-2 md:p-4"
           >
-            <ImagePlaceholder
-              height="h-[300px] md:h-[500px]"
-              text="Main Dashboard UI"
+            {/* UPDATED: Real Image from Public Folder */}
+            <img
+              src="/screenshots/realdash1.png"
+              alt="HireAbility Dashboard Interface"
+              className="w-full h-auto rounded-xl shadow-sm"
             />
           </motion.div>
         </motion.div>

@@ -110,7 +110,9 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
             setIsSpeaking(false);
             const endedAt = new Date();
 
-            if (!interviewIdRef.current) {
+            const currentInterviewId = interviewIdRef.current;
+
+            if (!currentInterviewId) {
                 console.warn('[call-end] missing interviewId, skipping persist');
                 setCallStartedAt(null);
                 callStartedAtRef.current = null;
@@ -123,6 +125,20 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
 
             try {
                 await persistTranscript(endedAt);
+                
+                // Automatically trigger analysis after saving transcript
+                console.log('[call-end] triggering automatic analysis for interview:', currentInterviewId);
+                vapiApi.analyzeInterview(currentInterviewId)
+                    .then((resp) => {
+                        if (resp.success) {
+                            console.log('[call-end] analysis completed successfully');
+                        } else {
+                            console.warn('[call-end] analysis failed:', resp.error);
+                        }
+                    })
+                    .catch((err) => {
+                        console.error('[call-end] analysis error:', err);
+                    });
             } catch (err) {
                 console.error('Failed to save transcript', err);
                 setVapiError('Failed to save transcript');

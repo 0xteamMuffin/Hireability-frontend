@@ -297,63 +297,6 @@ export default function SettingsPage() {
               </div>
             </form>
           </section>
-
-          <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 shadow-sm">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Lock size={20} className="text-indigo-400" /> Security
-            </h3>
-
-            <form className="space-y-4" onSubmit={handleUpdatePassword}>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5 ml-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="Enter current password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5 ml-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter new password"
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5 ml-1">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end pt-2">
-                <button 
-                  type="submit"
-                  disabled={savingPassword || !passwordData.currentPassword || !passwordData.newPassword}
-                  className="text-indigo-500 font-semibold text-sm hover:underline disabled:opacity-50 flex items-center gap-2"
-                >
-                  {savingPassword && <Loader2 size={14} className="animate-spin" />}
-                  Update Password
-                </button>
-              </div>
-            </form>
-          </section>
         </div>
 
         <div className="space-y-8">

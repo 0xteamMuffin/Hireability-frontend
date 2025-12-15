@@ -2,31 +2,48 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, User } from "lucide-react";
 import Link from "next/link";
 import { InterviewStartBar } from "@/components/config/interview-started";
 import { CompanyCard } from "@/components/config/company-logo";
-import { targetApi, TargetCompany } from "@/lib/api";
+import { targetApi, TargetCompany, profileApi } from "@/lib/api";
+import { Profile } from "@/lib/types";
 
 const ConfigPage = () => {
   const [targets, setTargets] = useState<TargetCompany[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTargets();
+    fetchData();
   }, []);
 
-  const fetchTargets = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const response = await targetApi.getAll();
-    if (response.success && response.data) {
-      setTargets(response.data);
+    const [targetsResponse, profileResponse] = await Promise.all([
+      targetApi.getAll(),
+      profileApi.get(),
+    ]);
+    if (targetsResponse.success && targetsResponse.data) {
+      setTargets(targetsResponse.data);
+    }
+    if (profileResponse.success && profileResponse.data) {
+      setProfile(profileResponse.data);
     }
     setLoading(false);
   };
 
-  const selected = targets.find((c) => c.id === selectedCompany);
+  const selected = selectedCompany === "default-profile"
+    ? profile && profile.targetCompany && profile.targetRole
+      ? {
+          id: "default-profile",
+          companyName: profile.targetCompany,
+          companyEmail: "",
+          role: profile.targetRole,
+        }
+      : null
+    : targets.find((c) => c.id === selectedCompany);
 
   return (
     <div
@@ -103,7 +120,7 @@ const ConfigPage = () => {
             <div className="flex items-center justify-center py-20">
               <Loader2 size={32} className="animate-spin text-indigo-400" />
             </div>
-          ) : targets.length === 0 ? (
+          ) : targets.length === 0 && (!profile || !profile.targetCompany || !profile.targetRole) ? (
             <div className="text-center py-20 bg-white/40 border-2 border-dashed border-slate-200 rounded-3xl">
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                 <Sparkles size={32} />
@@ -120,6 +137,40 @@ const ConfigPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {/* Default Profile Card */}
+              {profile && profile.targetCompany && profile.targetRole && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0 }}
+                  onClick={() => setSelectedCompany("default-profile")}
+                  className={`relative bg-gradient-to-br from-indigo-50 to-purple-50 border-2 rounded-3xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
+                    selectedCompany === "default-profile"
+                      ? "border-indigo-400 shadow-lg shadow-indigo-100 ring-2 ring-indigo-200"
+                      : "border-indigo-200 hover:border-indigo-300"
+                  }`}
+                >
+                  {selectedCompany === "default-profile" && (
+                    <div className="absolute top-4 right-4 w-6 h-6 bg-indigo-400 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-14 h-14 bg-indigo-400 rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
+                      <User size={28} className="text-white" />
+                    </div>
+                    <div className="px-3 py-1 bg-indigo-100 text-indigo-600 text-xs font-bold rounded-full">
+                      Default
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">{profile.targetCompany}</h3>
+                  <p className="text-sm text-slate-500 mb-2">{profile.targetRole}</p>
+                  <p className="text-xs text-indigo-500 font-medium">From your onboarding profile</p>
+                </motion.div>
+              )}
+
               <AnimatePresence>
                 {targets.map((company, idx) => (
                   <CompanyCard
@@ -132,7 +183,7 @@ const ConfigPage = () => {
                     }}
                     isSelected={selectedCompany === company.id}
                     onSelect={() => setSelectedCompany(company.id)}
-                    index={idx}
+                    index={profile && profile.targetCompany ? idx + 1 : idx}
                   />
                 ))}
               </AnimatePresence>

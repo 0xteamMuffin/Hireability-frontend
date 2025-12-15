@@ -8,6 +8,7 @@ interface MeetingVideoProps {
     micOn: boolean;
     setPermissionError?: (msg: string | null) => void;
     userInitial?: string;
+    onExpressionChange?: (expressions: Record<string, number>) => void; // Fixed: should be Record<string, number>
 }
 
 const MeetingVideo: React.FC<MeetingVideoProps> = ({
@@ -15,6 +16,7 @@ const MeetingVideo: React.FC<MeetingVideoProps> = ({
     micOn,
     setPermissionError,
     userInitial = "Y",
+    onExpressionChange, // Added this prop
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null as unknown as HTMLVideoElement);
     const streamRef = useRef<MediaStream | null>(null);
@@ -73,8 +75,17 @@ const MeetingVideo: React.FC<MeetingVideoProps> = ({
         };
     }, [cameraOn, micOn, setPermissionError]);
 
-    const handleExpressionChange = (expression: string) => {
-        setCurrentExpression(expression);
+    // Fixed: Handle expressions object and find dominant expression
+    const handleExpressionChange = (expressions: Record<string, number>) => {
+        // Pass the full expressions object to the parent (meeting.tsx)
+        onExpressionChange?.(expressions);
+        
+        // Find dominant expression for local display
+        const dominantExpression = Object.entries(expressions).reduce((prev, current) => 
+            prev[1] > current[1] ? prev : current
+        )[0];
+        
+        setCurrentExpression(dominantExpression);
     };
 
     const getExpressionIcon = () => {
@@ -125,7 +136,7 @@ const MeetingVideo: React.FC<MeetingVideoProps> = ({
                         detectionInterval={500}
                     />
                     
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
             ) : (
                 <div className="w-full h-full flex items-center justify-center bg-[#202124]">

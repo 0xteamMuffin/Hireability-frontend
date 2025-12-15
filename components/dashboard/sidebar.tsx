@@ -39,11 +39,11 @@ export const Sidebar = () => {
       label: "Resume Review",
       icon: <FileText size={20} />,
     },
-    {
-      href: "/dashboard/history",
-      label: "History",
-      icon: <History size={20} />,
-    },
+    // {
+    //   href: "/dashboard/history",
+    //   label: "History",
+    //   icon: <History size={20} />,
+    // },
     {
       href: "/dashboard/settings",
       label: "Profile",
@@ -54,14 +54,16 @@ export const Sidebar = () => {
   return (
     <aside className="relative z-20 w-64 hidden md:flex flex-col border-r border-slate-200/60 bg-white/50 backdrop-blur-xl p-6 h-screen top-0">
       {/* Logo */}
-      <div className="flex items-center gap-2 mb-10 px-2">
-        <div className="w-8 h-8 bg-indigo-400 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
-          <span className="text-white font-bold text-lg">H</span>
+      <Link href={"/"}>
+        <div className="flex items-center gap-2 mb-10 px-2 cursor-pointer">
+          <div className="w-8 h-8 bg-indigo-400 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
+            <span className="text-white font-bold text-lg">H</span>
+          </div>
+          <span className="font-bold text-xl text-slate-800 tracking-tight">
+            HireAbility
+          </span>
         </div>
-        <span className="font-bold text-xl text-slate-800 tracking-tight">
-          HireAbility
-        </span>
-      </div>
+      </Link>
 
       {/* Nav Links */}
       <nav className="flex-1 space-y-2">
