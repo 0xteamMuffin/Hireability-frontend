@@ -83,6 +83,11 @@ export interface SaveTranscriptPayload {
   }>;
 }
 
+export interface SaveCallMetadataPayload {
+  interviewId: string;
+  callId: string;
+}
+
 export interface Interview {
   id: string;
   userId: string;

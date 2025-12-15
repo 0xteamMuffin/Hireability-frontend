@@ -36,5 +36,8 @@ export const vapiApi = {
   analyzeInterview: (id: string): Promise<ApiResponse<InterviewWithAnalysis>> => {
     return apiClient.post<InterviewWithAnalysis>(`/api/interviews/${id}/analyze`, {});
   },
+  saveCallMetadata: (payload: { interviewId: string; callId: string }): Promise<ApiResponse<unknown>> => {
+    return apiClient.post('/api/vapi/calls', payload);
+  },
 };
 
