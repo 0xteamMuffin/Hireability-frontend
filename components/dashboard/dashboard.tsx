@@ -86,7 +86,11 @@ export const DashboardHome = () => {
   };
 
   const getScore = (interview: InterviewWithAnalysis) => {
-    if (interview.analysis?.overall && typeof interview.analysis.overall === 'object' && 'score' in interview.analysis.overall) {
+    if (
+      interview.analysis?.overall &&
+      typeof interview.analysis.overall === "object" &&
+      "score" in interview.analysis.overall
+    ) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (interview.analysis.overall as any).score;
     }
@@ -115,7 +119,8 @@ export const DashboardHome = () => {
             Dashboard
           </h1>
           <p className="text-slate-500 mt-1">
-            Welcome back, {user?.firstName || "User"}! Ready to ace your next interview?
+            Welcome back, {user?.firstName || "User"}! Ready to ace your next
+            interview?
           </p>
         </div>
         <div className="md:hidden">
@@ -136,7 +141,8 @@ export const DashboardHome = () => {
           </div>
           <h2 className="text-3xl font-bold mb-2">Start New Interview</h2>
           <p className="text-indigo-100 mb-0">
-            Start a new mock interview session to practice your skills and get real-time feedback.
+            Start a new mock interview session to practice your skills and get
+            real-time feedback.
           </p>
         </div>
         <Link href="/config">
@@ -217,14 +223,17 @@ export const DashboardHome = () => {
                       </span>
                       <span
                         className={`font-bold ${
-                          score && score >= 80 ? "text-green-500" : "text-orange-500"
+                          score && score >= 80
+                            ? "text-green-500"
+                            : "text-orange-500"
                         }`}
                       >
                         {score ? `${score}%` : "N/A"}
                       </span>
                     </div>
                     <div className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1.5">
-                      <CheckCircle2 size={12} /> {item.endedAt ? "Completed" : "In Progress"}
+                      <CheckCircle2 size={12} />{" "}
+                      {item.endedAt ? "Completed" : "In Progress"}
                     </div>
                     <button className="text-slate-400 hover:text-indigo-400">
                       <MoreVertical size={20} />
@@ -239,4 +248,3 @@ export const DashboardHome = () => {
     </motion.div>
   );
 };
-
