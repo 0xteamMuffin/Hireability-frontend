@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Sparkles, Loader2, User } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, User, Plus } from "lucide-react";
 import Link from "next/link";
 import { InterviewStartBar } from "@/components/config/interview-started";
 import { CompanyCard } from "@/components/config/company-logo";
@@ -16,6 +16,7 @@ const ConfigPage = () => {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     fetchData();
   }, []);
 
@@ -104,7 +105,7 @@ const ConfigPage = () => {
             <div className="p-2 bg-indigo-400 rounded-lg text-white">
               <Sparkles size={20} />
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="font-bold text-slate-800 mb-1">
                 AI-Powered Mock Interviews
               </h3>
@@ -114,6 +115,12 @@ const ConfigPage = () => {
                 practice session.
               </p>
             </div>
+            <Link href="/dashboard/target">
+              <button className="flex items-center gap-2 bg-white text-indigo-600 px-4 py-2 rounded-xl font-semibold text-sm shadow-sm border border-indigo-200 hover:bg-indigo-50 transition-all whitespace-nowrap cursor-pointer">
+                <Plus size={16} />
+                Add Target
+              </button>
+            </Link>
           </motion.div>
 
           {loading ? (
