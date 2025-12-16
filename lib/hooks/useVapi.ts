@@ -11,9 +11,10 @@ interface User {
 interface UseVapiProps {
     user: User | null;
     targetId?: string | null;
+    getAverageExpressions?: () => Record<string, number>;
 }
 
-export const useVapi = ({ user, targetId }: UseVapiProps) => {
+export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps) => {
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -133,15 +134,30 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
                 return;
             }
 
+            // Get average expressions from parent
+            let averageExpressions: Record<string, number> | undefined = undefined;
+            if (getAverageExpressions) {
+                try {
+                    averageExpressions = getAverageExpressions();
+                    console.log('[call-end] Average expressions:', averageExpressions);
+                } catch (err) {
+                    console.error('[call-end] error getting expressions:', err);
+                }
+            }
+
             try {
                 await persistTranscript(endedAt);
 
-                // Persist call metadata + trigger backend-side pause analysis
-                if (currentCallId) {
+                // Persist call metadata + trigger backend-side pause analysis + send expressions
+                if (currentInterviewId) {
                     vapiApi
                         .saveCallMetadata({
                             interviewId: currentInterviewId,
-                            callId: currentCallId,
+                            callId: currentCallId || 'unknown',
+                            averageExpressions: averageExpressions,
+                        })
+                        .then(() => {
+                            console.log('[call-end] saveCallMetadata success with expressions');
                         })
                         .catch((err) => {
                             console.error('[call-end] saveCallMetadata error:', err);
@@ -201,7 +217,7 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
         return () => {
             client.stop();
         };
-    }, []);
+    }, [getAverageExpressions, timeFormatter]);
 
     // Load context
     useEffect(() => {

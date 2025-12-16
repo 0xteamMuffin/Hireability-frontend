@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AlertCircle, Loader2, Radio } from 'lucide-react';
 import MeetingVideo from './meeting-video';
 import { useAuth } from '@/lib/hooks';
@@ -51,34 +51,8 @@ const Meeting: React.FC = () => {
         disgusted: [],
     });
 
-    const {
-        vapiClient,
-        callStatus,
-        isSpeaking,
-        vapiError,
-        contextStatus,
-        context,
-        conversation,
-        startInterview,
-        stopInterview,
-    } = useVapi({ user, targetId });
-
-    const currentTime = useTime();
-
-    const toggleMic = () => setMicOn((prev) => !prev);
-    const toggleCamera = () => setCameraOn((prev) => !prev);
-
-    // Handle expression data from facial detector
-    const handleExpressionChange = (expressions: Record<string, number>) => {
-        Object.entries(expressions).forEach(([emotion, value]) => {
-            if (emotion in expressionDataRef.current) {
-                expressionDataRef.current[emotion as keyof typeof expressionDataRef.current].push(value);
-            }
-        });
-    };
-
-    // Calculate and log average expressions when call ends
-    const logAverageExpressions = () => {
+    // Calculate average expressions and return them - wrapped in useCallback to prevent infinite re-renders
+    const getAverageExpressions = useCallback((): Record<string, number> => {
         const averages: Record<string, number> = {};
         
         Object.entries(expressionDataRef.current).forEach(([emotion, values]) => {
@@ -104,16 +78,39 @@ const Meeting: React.FC = () => {
             fearful: [],
             disgusted: [],
         };
-    };
 
-    // Track call status changes to detect when call ends
-    const prevCallStatusRef = useRef(callStatus);
-    useEffect(() => {
-        if (prevCallStatusRef.current === 'in-call' && callStatus === 'idle') {
-            logAverageExpressions();
-        }
-        prevCallStatusRef.current = callStatus;
-    }, [callStatus]);
+        return averages;
+    }, []); // Empty dependency array because it only uses refs
+
+    const {
+        vapiClient,
+        callStatus,
+        isSpeaking,
+        vapiError,
+        contextStatus,
+        context,
+        conversation,
+        startInterview,
+        stopInterview,
+    } = useVapi({ 
+        user, 
+        targetId,
+        getAverageExpressions 
+    });
+
+    const currentTime = useTime();
+
+    const toggleMic = () => setMicOn((prev) => !prev);
+    const toggleCamera = () => setCameraOn((prev) => !prev);
+
+    // Handle expression data from facial detector
+    const handleExpressionChange = useCallback((expressions: Record<string, number>) => {
+        Object.entries(expressions).forEach(([emotion, value]) => {
+            if (emotion in expressionDataRef.current) {
+                expressionDataRef.current[emotion as keyof typeof expressionDataRef.current].push(value);
+            }
+        });
+    }, []);
 
     // Auto-start interview only once when component mounts
     useEffect(() => {
@@ -142,7 +139,7 @@ const Meeting: React.FC = () => {
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
     }, [isSpeaking]);
-
+    
     if (permissionError) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-[#202124] text-white p-4 text-center font-sans">
