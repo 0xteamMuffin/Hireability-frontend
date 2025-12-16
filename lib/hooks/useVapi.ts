@@ -11,9 +11,10 @@ interface User {
 interface UseVapiProps {
     user: User | null;
     targetId?: string | null;
+    getAverageExpressions?: () => Record<string, number>;
 }
 
-export const useVapi = ({ user, targetId }: UseVapiProps) => {
+export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps) => {
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -23,8 +24,10 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
     const [conversation, setConversation] = useState<ConversationEntry[]>([]);
     const [callStartedAt, setCallStartedAt] = useState<Date | null>(null);
     const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
+    const [callId, setCallId] = useState<string | null>(null);
     const [interviewId, setInterviewId] = useState<string | null>(null);
     const interviewIdRef = useRef<string | null>(null);
+    const callIdRef = useRef<string | null>(null);
     const conversationRef = useRef<ConversationEntry[]>([]);
     const userRef = useRef<User | null>(user);
     const callStartedAtRef = useRef<Date | null>(null);
@@ -57,6 +60,7 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
         const currentUser = userRef.current;
         const startedAt = callStartedAtRef.current;
         const assistantId = activeAssistantIdRef.current;
+        const cid = callIdRef.current;
 
         console.log('[persistTranscript] start', {
             hasUser: !!currentUser,
@@ -74,7 +78,7 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
         const resp = await vapiApi.saveTranscript({
             interviewId: iid,
             assistantId: assistantId,
-            callId: null,
+            callId: cid,
             startedAt: startedAt?.toISOString() || null,
             endedAt: endedAt.toISOString(),
             durationSeconds,
@@ -95,22 +99,29 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
         const client = new Vapi(apiKey);
         setVapiClient(client);
 
-        client.on('call-start', () => {
+        const clientAny = client as any;
+
+        clientAny.on('call-start', (payload: any) => {
             setCallStatus('in-call');
             setVapiError(null);
             setConversation([]);
             const startTime = new Date();
             setCallStartedAt(startTime);
             callStartedAtRef.current = startTime;
+
+            const currentCallId = payload?.id || payload?.callId || payload?.call?.id || null;
+            setCallId(currentCallId);
+            callIdRef.current = currentCallId;
         });
 
-        client.on('call-end', async () => {
-            console.log('[call-end] fired', { interviewId: interviewIdRef.current });
+        clientAny.on('call-end', async () => {
+            console.log('[call-end] fired', { interviewId: interviewIdRef.current, callId: callIdRef.current });
             setCallStatus('idle');
             setIsSpeaking(false);
             const endedAt = new Date();
 
             const currentInterviewId = interviewIdRef.current;
+            const currentCallId = callIdRef.current;
 
             if (!currentInterviewId) {
                 console.warn('[call-end] missing interviewId, skipping persist');
@@ -123,9 +134,36 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
                 return;
             }
 
+            // Get average expressions from parent
+            let averageExpressions: Record<string, number> | undefined = undefined;
+            if (getAverageExpressions) {
+                try {
+                    averageExpressions = getAverageExpressions();
+                    console.log('[call-end] Average expressions:', averageExpressions);
+                } catch (err) {
+                    console.error('[call-end] error getting expressions:', err);
+                }
+            }
+
             try {
                 await persistTranscript(endedAt);
-                
+
+                // Persist call metadata + trigger backend-side pause analysis + send expressions
+                if (currentCallId) {
+                    vapiApi
+                        .saveCallMetadata({
+                            interviewId: currentInterviewId,
+                            callId: currentCallId,
+                            averageExpressions: averageExpressions,
+                        })
+                        .then(() => {
+                            console.log('[call-end] saveCallMetadata success with expressions');
+                        })
+                        .catch((err) => {
+                            console.error('[call-end] saveCallMetadata error:', err);
+                        });
+                }
+
                 // Automatically trigger analysis after saving transcript
                 console.log('[call-end] triggering automatic analysis for interview:', currentInterviewId);
                 vapiApi.analyzeInterview(currentInterviewId)
@@ -149,6 +187,8 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
                 activeAssistantIdRef.current = null;
                 setInterviewId(null);
                 interviewIdRef.current = null;
+                setCallId(null);
+                callIdRef.current = null;
             }
         });
 
@@ -177,7 +217,7 @@ export const useVapi = ({ user, targetId }: UseVapiProps) => {
         return () => {
             client.stop();
         };
-    }, []);
+    }, [getAverageExpressions, timeFormatter]);
 
     // Load context
     useEffect(() => {

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.32.0",
+    "@monaco-editor/react": "^4.7.0",
     "@vapi-ai/web": "^2.5.2",
     "face-api.js": "^0.22.2",
     "framer-motion": "^12.23.25",

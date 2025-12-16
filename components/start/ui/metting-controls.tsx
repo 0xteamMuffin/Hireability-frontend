@@ -39,17 +39,17 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
     };
 
     return (
-        <div className="h-20 shrink-0 flex items-center justify-center relative px-6 pb-2">
-            <div className="absolute left-6 hidden md:flex items-center text-white font-medium min-w-[200px]">
-                <span className="truncate">Job Interview: Senior Developer</span>
+        <div className="h-16 md:h-20 shrink-0 flex items-center justify-center relative px-4 md:px-6 pb-2">
+            <div className="absolute left-4 md:left-6 hidden lg:flex items-center text-white font-medium min-w-[200px]">
+                <span className="truncate text-sm md:text-base">Job Interview: Senior Developer</span>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
                 <ControlButton
                     isOn={micOn}
                     onClick={onToggleMic}
-                    onIcon={<Mic size={20} />}
-                    offIcon={<MicOff size={20} />}
+                    onIcon={<Mic size={18} className="md:w-5 md:h-5" />}
+                    offIcon={<MicOff size={18} className="md:w-5 md:h-5" />}
                     tooltip={micOn ? "Turn off microphone" : "Turn on microphone"}
                     disabled={isEnding}
                 />
@@ -57,8 +57,8 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
                 <ControlButton
                     isOn={cameraOn}
                     onClick={onToggleCamera}
-                    onIcon={<Video size={20} />}
-                    offIcon={<VideoOff size={20} />}
+                    onIcon={<Video size={18} className="md:w-5 md:h-5" />}
+                    offIcon={<VideoOff size={18} className="md:w-5 md:h-5" />}
                     tooltip={cameraOn ? "Turn off camera" : "Turn on camera"}
                     disabled={isEnding}
                 />
@@ -66,10 +66,10 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
                 <button
                     onClick={handleLeaveCall}
                     disabled={isEnding || callStatus !== 'in-call'}
-                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-3.5 mx-2 w-14 h-14 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-3 md:p-3.5 mx-1 md:mx-2 w-12 h-12 md:w-14 md:h-14 flex items-center justify-center transition-all duration-200 shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     title="End interview and leave"
                 >
-                    {isEnding ? <Loader2 size={20} className="animate-spin" /> : <PhoneOff size={20} />}
+                    {isEnding ? <Loader2 size={18} className="md:w-5 md:h-5 animate-spin" /> : <PhoneOff size={18} className="md:w-5 md:h-5" />}
                 </button>
             </div>
         </div>
@@ -92,7 +92,7 @@ const ControlButton: React.FC<ControlButtonProps> = ({ isOn, onClick, onIcon, of
                 onClick={onClick}
                 disabled={disabled}
                 className={`
-                    rounded-full p-3.5 w-12 h-12 flex items-center justify-center transition-all duration-200 border
+                    rounded-full p-3 md:p-3.5 w-11 h-11 md:w-12 md:h-12 flex items-center justify-center transition-all duration-200 border
                     ${isOn
                         ? 'bg-[#3c4043] border-transparent text-white hover:bg-[#4a4e51] hover:shadow-lg'
                         : 'bg-[#ea4335] border-transparent text-white hover:bg-[#d93025] hover:shadow-lg'
