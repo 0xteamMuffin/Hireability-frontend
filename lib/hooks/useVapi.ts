@@ -102,6 +102,9 @@ export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps)
         const clientAny = client as any;
 
         clientAny.on('call-start', (payload: any) => {
+            console.log('[call-start] ======= EVENT FIRED =======');
+            console.log('[call-start] Full payload:', JSON.stringify(payload, null, 2));
+
             setCallStatus('in-call');
             setVapiError(null);
             setConversation([]);
@@ -109,9 +112,27 @@ export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps)
             setCallStartedAt(startTime);
             callStartedAtRef.current = startTime;
 
-            const currentCallId = payload?.id || payload?.callId || payload?.call?.id || null;
-            setCallId(currentCallId);
-            callIdRef.current = currentCallId;
+            const eventCallId =
+                payload?.id ||
+                payload?.callId ||
+                payload?.call?.id ||
+                payload?.data?.id ||
+                payload?.data?.callId ||
+                null;
+
+            console.log('[call-start] Extracted callId from event:', eventCallId);
+
+            if (eventCallId && !callIdRef.current) {
+                console.log('[call-start] ✅ Setting callId from event');
+                setCallId(eventCallId);
+                callIdRef.current = eventCallId;
+            } else if (!eventCallId && !callIdRef.current) {
+                console.warn('[call-start] ⚠️ No callId available from either source!');
+            } else {
+                console.log('[call-start] Using existing callId:', callIdRef.current);
+            }
+
+            console.log('[call-start] ======= END EVENT =======');
         });
 
         clientAny.on('call-end', async () => {
@@ -276,7 +297,9 @@ export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps)
             setCallStartedAt(startTime);
             callStartedAtRef.current = startTime;
 
-            await vapiClient.start(assistantId, {
+            // START THE CALL AND GET THE CALL OBJECT
+            console.log('[startInterview] Starting Vapi call...');
+            const vapiCall = await vapiClient.start(assistantId, {
                 model: {
                     provider: 'openai',
                     model: 'gpt-4o',
@@ -293,9 +316,39 @@ export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps)
                     userContext: context?.systemPrompt || null,
                 },
             } as any);
+
+            console.log('[startInterview] Vapi call started:', vapiCall);
+
+            if (vapiCall && vapiCall.id) {
+                console.log('[startInterview] ✅ Got callId from vapi.start():', vapiCall.id);
+                setCallId(vapiCall.id);
+                callIdRef.current = vapiCall.id;
+            } else if (vapiCall && (vapiCall as any).webCallUrl) {
+                console.warn('[startInterview] This is a web call, checking for ID in different location');
+                const webCallId = extractCallIdFromUrl((vapiCall as any).webCallUrl);
+                if (webCallId) {
+                    console.log('[startInterview] ✅ Extracted callId from webCallUrl:', webCallId);
+                    setCallId(webCallId);
+                    callIdRef.current = webCallId;
+                }
+            } else {
+                console.warn('[startInterview] ⚠️ No callId returned from vapi.start()');
+                console.log('[startInterview] Call object:', JSON.stringify(vapiCall, null, 2));
+            }
         } catch (error) {
+            console.error('[startInterview] Error:', error);
             setCallStatus('idle');
             setVapiError(error instanceof Error ? error.message : 'Failed to start the interview');
+        }
+    };
+
+    const extractCallIdFromUrl = (url: string): string | null => {
+        try {
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split('/');
+            return pathParts[pathParts.length - 1] || null;
+        } catch {
+            return null;
         }
     };
 
