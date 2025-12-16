@@ -149,11 +149,11 @@ export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps)
                 await persistTranscript(endedAt);
 
                 // Persist call metadata + trigger backend-side pause analysis + send expressions
-                if (currentInterviewId) {
+                if (currentCallId) {
                     vapiApi
                         .saveCallMetadata({
                             interviewId: currentInterviewId,
-                            callId: currentCallId || 'unknown',
+                            callId: currentCallId,
                             averageExpressions: averageExpressions,
                         })
                         .then(() => {
