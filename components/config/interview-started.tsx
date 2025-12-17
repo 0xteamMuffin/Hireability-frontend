@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Mail, Play } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 interface InterviewStartBarProps {
@@ -69,12 +69,12 @@ export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
           </div>
         </div>
 
-        <Link href={`/start?targetId=${selectedCompany.id}`}>
+        <Link href={`/interview?targetId=${selectedCompany.id}`}>
           <button className="bg-indigo-400 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer">
-            Start Interview
-            <Play
+            Configure Interview
+            <ArrowRight
               size={20}
-              className="fill-white group-hover:translate-x-1 transition-transform"
+              className="group-hover:translate-x-1 transition-transform"
             />
           </button>
         </Link>

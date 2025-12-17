@@ -6,6 +6,8 @@ export interface UserSettings {
   notifications: boolean;
   darkMode: boolean;
   language: string;
+  multiRoundEnabled: boolean;
+  defaultRounds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +41,8 @@ export interface UpdateSettingsInput {
   notifications?: boolean;
   darkMode?: boolean;
   language?: string;
+  multiRoundEnabled?: boolean;
+  defaultRounds?: string[];
 }
 
 export const settingsApi = {

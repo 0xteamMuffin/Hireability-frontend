@@ -13,6 +13,7 @@ import {
   FileText,
   Menu,
   X,
+  Play,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 
@@ -30,6 +31,11 @@ export const Sidebar = () => {
       href: "/dashboard",
       label: "Dashboard",
       icon: <LayoutDashboard size={20} />,
+    },
+    {
+      href: "/dashboard/interviews",
+      label: "Interviews",
+      icon: <Play size={20} />,
     },
     {
       href: "/dashboard/analytics",

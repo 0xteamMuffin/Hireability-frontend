@@ -7,8 +7,10 @@ import Transcriber from './transcriber';
 import VapiOrb from './ui/vapi-orb';
 import MeetingControls from './ui/metting-controls';
 import { useVapi } from '@/lib/hooks/useVapi';
-import { useSearchParams } from 'next/navigation';
-import CodeEditor from './code-editor';
+import { useSearchParams, useRouter } from 'next/navigation';
+import InteractiveCodeEditor from './interactive-code-editor';
+import { RoundType, CodingProblem, CodeEvaluationResult, ROUND_DISPLAY_INFO } from '@/lib/types';
+import { sessionApi, codingApi } from '@/lib/api';
 
 
 const useTime = () => {
@@ -22,8 +24,12 @@ const useTime = () => {
 
 const Meeting: React.FC = () => {
     const { user } = useAuth();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const targetId = searchParams.get('targetId');
+    const sessionId = searchParams.get('sessionId');
+    const roundId = searchParams.get('roundId');
+    const roundType = searchParams.get('roundType') as RoundType | null;
     
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
@@ -31,6 +37,11 @@ const Meeting: React.FC = () => {
     const [orbScale, setOrbScale] = useState(1);
     const animationRef = useRef<number | null>(null);
     const hasStartedRef = useRef(false);
+    
+    // Coding round state
+    const [codingProblem, setCodingProblem] = useState<CodingProblem | null>(null);
+    const [codeEvaluation, setCodeEvaluation] = useState<CodeEvaluationResult | null>(null);
+    const isCodingRound = roundType === RoundType.CODING;
     
     // Expression tracking
     const expressionDataRef = useRef<{
@@ -95,6 +106,7 @@ const Meeting: React.FC = () => {
     } = useVapi({ 
         user, 
         targetId,
+        roundType: roundType || undefined,
         getAverageExpressions 
     });
 
@@ -102,6 +114,44 @@ const Meeting: React.FC = () => {
 
     const toggleMic = () => setMicOn((prev) => !prev);
     const toggleCamera = () => setCameraOn((prev) => !prev);
+
+    // Load coding problem for coding rounds
+    useEffect(() => {
+        const loadCodingProblem = async () => {
+            if (isCodingRound && roundId) {
+                try {
+                    const resp = await codingApi.assignProblem(roundId);
+                    if (resp.success && resp.data) {
+                        setCodingProblem(resp.data);
+                    }
+                } catch (err) {
+                    console.error('Failed to load coding problem:', err);
+                }
+            }
+        };
+        loadCodingProblem();
+    }, [isCodingRound, roundId]);
+
+    // Handle code submission result
+    const handleCodeSubmit = (result: CodeEvaluationResult) => {
+        setCodeEvaluation(result);
+    };
+
+    // Handle round completion
+    const handleRoundComplete = async () => {
+        if (!sessionId || !roundId) return;
+        
+        try {
+            await sessionApi.completeRound({
+                sessionId,
+                roundId,
+            });
+            // Navigate back to round selection
+            router.push(`/interview?targetId=${targetId || ''}`);
+        } catch (err) {
+            console.error('Failed to complete round:', err);
+        }
+    };
 
     // Handle expression data from facial detector
     const handleExpressionChange = useCallback((expressions: Record<string, number>) => {
@@ -266,11 +316,18 @@ const Meeting: React.FC = () => {
                 onToggleCamera={toggleCamera}
                 onStartInterview={startInterview}
                 onStopInterview={stopInterview}
+                onRoundComplete={sessionId ? handleRoundComplete : undefined}
+                showCompleteButton={!!sessionId}
             />
 
-            {/* Code Editor - hide on mobile */}
+            {/* Interactive Code Editor - show for coding rounds or always available */}
             <div className="hidden lg:block">
-                <CodeEditor />
+                <InteractiveCodeEditor
+                    roundId={roundId || undefined}
+                    problem={codingProblem || undefined}
+                    onSubmit={handleCodeSubmit}
+                    isInterviewActive={callStatus === 'in-call' && isCodingRound}
+                />
             </div>
         </div>
     );

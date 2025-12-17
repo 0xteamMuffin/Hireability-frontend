@@ -88,6 +88,34 @@ export interface SaveCallMetadataPayload {
   callId: string;
 }
 
+// Multi-Round Interview System Enums (moved before Interview interface)
+export enum RoundType {
+  BEHAVIORAL = 'BEHAVIORAL',
+  TECHNICAL = 'TECHNICAL',
+  CODING = 'CODING',
+  SYSTEM_DESIGN = 'SYSTEM_DESIGN',
+  HR = 'HR',
+}
+
+export enum InterviewStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  SKIPPED = 'SKIPPED',
+}
+
+export enum SessionStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  ABANDONED = 'ABANDONED',
+}
+
+export enum Difficulty {
+  EASY = 'EASY',
+  MEDIUM = 'MEDIUM',
+  HARD = 'HARD',
+}
+
 export interface Interview {
   id: string;
   userId: string;
@@ -97,6 +125,10 @@ export interface Interview {
   endedAt: string | null;
   durationSeconds: number | null;
   contextPrompt: string | null;
+  roundType: RoundType | null;
+  roundOrder: number;
+  sessionId: string | null;
+  status: InterviewStatus;
   createdAt: string;
 }
 
@@ -158,3 +190,117 @@ export interface InterviewWithAnalysis extends Interview {
     createdAt: string;
   }>;
 }
+
+// Multi-Round Interview System Types
+
+export interface InterviewRound {
+  id: string;
+  sessionId: string;
+  interviewId: string | null;
+  roundType: RoundType;
+  order: number;
+  status: InterviewStatus;
+  isLocked: boolean;
+  problemId: string | null;
+  codeSubmission: string | null;
+  codeLanguage: string | null;
+  createdAt: string;
+}
+
+export interface InterviewSession {
+  id: string;
+  userId: string;
+  targetId: string | null;
+  status: SessionStatus;
+  currentRound: number;
+  totalRounds: number;
+  completedAt: string | null;
+  createdAt: string;
+  rounds: InterviewRound[];
+}
+
+export interface CodingProblem {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: Difficulty;
+  category: string;
+  starterCode: Record<string, string> | null;
+  hints: string[];
+}
+
+export interface CodeEvaluationResult {
+  passed: boolean;
+  testResults: Array<{
+    name: string;
+    passed: boolean;
+    expected: string;
+    actual: string;
+    error?: string;
+  }>;
+  feedback: string;
+  score: number;
+}
+
+export interface CreateSessionPayload {
+  targetId?: string;
+  rounds?: RoundType[];
+}
+
+export interface StartRoundPayload {
+  sessionId: string;
+  roundId: string;
+}
+
+export interface CompleteRoundPayload {
+  sessionId: string;
+  roundId: string;
+  interviewId?: string;
+}
+
+export interface SubmitCodePayload {
+  roundId: string;
+  code: string;
+  language: string;
+}
+
+export interface RoundDisplayInfo {
+  type: RoundType;
+  title: string;
+  description: string;
+  icon: string;
+  estimatedDuration: number;
+}
+
+export const ROUND_DISPLAY_INFO: Record<RoundType, Omit<RoundDisplayInfo, 'type'>> = {
+  [RoundType.BEHAVIORAL]: {
+    title: 'Behavioral Round',
+    description: 'Questions about your experience, soft skills, and culture fit',
+    icon: 'users',
+    estimatedDuration: 15,
+  },
+  [RoundType.TECHNICAL]: {
+    title: 'Technical Round',
+    description: 'Deep dive into your technical knowledge and problem-solving approach',
+    icon: 'cpu',
+    estimatedDuration: 25,
+  },
+  [RoundType.CODING]: {
+    title: 'Live Coding',
+    description: 'Solve a coding problem while explaining your thought process',
+    icon: 'code',
+    estimatedDuration: 30,
+  },
+  [RoundType.SYSTEM_DESIGN]: {
+    title: 'System Design',
+    description: 'Design a scalable system architecture',
+    icon: 'network',
+    estimatedDuration: 35,
+  },
+  [RoundType.HR]: {
+    title: 'HR Round',
+    description: 'Final discussion about role expectations and company fit',
+    icon: 'briefcase',
+    estimatedDuration: 10,
+  },
+};

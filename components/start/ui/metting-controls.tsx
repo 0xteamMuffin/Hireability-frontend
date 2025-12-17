@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface MeetingControlsProps {
@@ -13,6 +13,8 @@ interface MeetingControlsProps {
     onToggleCamera: () => void;
     onStartInterview: () => void;
     onStopInterview: () => void;
+    onRoundComplete?: () => void;
+    showCompleteButton?: boolean;
 }
 
 const MeetingControls: React.FC<MeetingControlsProps> = ({
@@ -22,6 +24,8 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
     onToggleMic,
     onToggleCamera,
     onStopInterview,
+    onRoundComplete,
+    showCompleteButton = false,
 }) => {
     const router = useRouter();
     const [isEnding, setIsEnding] = useState(false);
@@ -31,7 +35,13 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
         try {
             await onStopInterview();
             await new Promise(resolve => setTimeout(resolve, 1000));
-            router.push('/dashboard/analytics');
+            
+            // If we're in a session, complete the round and go back to round selection
+            if (showCompleteButton && onRoundComplete) {
+                await onRoundComplete();
+            } else {
+                router.push('/dashboard/analytics');
+            }
         } catch (error) {
             console.error('Error ending interview:', error);
             setIsEnding(false);

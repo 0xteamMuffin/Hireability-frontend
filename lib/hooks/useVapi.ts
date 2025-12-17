@@ -11,10 +11,11 @@ interface User {
 interface UseVapiProps {
     user: User | null;
     targetId?: string | null;
+    roundType?: string;
     getAverageExpressions?: () => Record<string, number>;
 }
 
-export const useVapi = ({ user, targetId, getAverageExpressions }: UseVapiProps) => {
+export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: UseVapiProps) => {
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);

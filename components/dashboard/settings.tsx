@@ -10,19 +10,25 @@ import {
   Bell,
   Moon,
   Globe,
-  CreditCard,
   Trash2,
   Camera,
   Save,
   Loader2,
+  Users,
+  Cpu,
+  Code,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { profileApi, settingsApi } from "@/lib/api";
+import { RoundType, ROUND_DISPLAY_INFO } from "@/lib/types";
 
 export const SettingsPage = () => {
   const { user, isLoading } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [multiRoundEnabled, setMultiRoundEnabled] = useState(true);
+  const [defaultRounds, setDefaultRounds] = useState<string[]>(['BEHAVIORAL', 'TECHNICAL']);
   const [profile, setProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -46,9 +52,42 @@ export const SettingsPage = () => {
       if (res.success && res.data) {
         setProfile(res.data);
       }
+      // Load settings
+      const settingsRes = await settingsApi.getPreferences();
+      if (settingsRes.success && settingsRes.data) {
+        setNotifications(settingsRes.data.notifications);
+        setDarkMode(settingsRes.data.darkMode);
+        setMultiRoundEnabled(settingsRes.data.multiRoundEnabled ?? true);
+        setDefaultRounds(settingsRes.data.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL']);
+      }
     };
     fetchProfile();
   }, [user]);
+
+  const handleToggleRound = (roundType: string) => {
+    setDefaultRounds(prev => {
+      if (prev.includes(roundType)) {
+        // Don't allow removing all rounds
+        if (prev.length <= 1) return prev;
+        return prev.filter(r => r !== roundType);
+      }
+      return [...prev, roundType];
+    });
+  };
+
+  const handleSaveInterviewSettings = async () => {
+    try {
+      const res = await settingsApi.updatePreferences({
+        multiRoundEnabled,
+        defaultRounds,
+      });
+      if (res.success) {
+        alert("Interview settings saved!");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -320,6 +359,93 @@ export const SettingsPage = () => {
                 </div>
                 <button className="text-sm font-bold text-indigo-400">
                   Change
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* INTERVIEW SETTINGS */}
+          <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 shadow-sm h-fit">
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <ListChecks size={20} className="text-indigo-400" /> Interview Settings
+            </h3>
+
+            <div className="space-y-6">
+              {/* Multi-Round Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700 text-sm">
+                      Multi-Round Mode
+                    </p>
+                    <p className="text-xs text-slate-400">Enable prerequisite rounds</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMultiRoundEnabled(!multiRoundEnabled)}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                    multiRoundEnabled ? "bg-indigo-400" : "bg-slate-200"
+                  }`}
+                >
+                  <motion.div
+                    animate={{ x: multiRoundEnabled ? 24 : 0 }}
+                    className="w-4 h-4 bg-white rounded-full shadow-sm"
+                  />
+                </button>
+              </div>
+
+              {/* Default Rounds Selection */}
+              {multiRoundEnabled && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-slate-700">Default Interview Rounds</p>
+                  <div className="space-y-2">
+                    {Object.values(RoundType).map((roundType) => {
+                      const info = ROUND_DISPLAY_INFO[roundType];
+                      const isSelected = defaultRounds.includes(roundType);
+                      return (
+                        <button
+                          key={roundType}
+                          onClick={() => handleToggleRound(roundType)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                            isSelected 
+                              ? 'border-indigo-300 bg-indigo-50' 
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-lg ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                            {roundType === 'BEHAVIORAL' && <Users size={16} />}
+                            {roundType === 'TECHNICAL' && <Cpu size={16} />}
+                            {roundType === 'CODING' && <Code size={16} />}
+                            {roundType === 'SYSTEM_DESIGN' && <Globe size={16} />}
+                            {roundType === 'HR' && <User size={16} />}
+                          </div>
+                          <div className="text-left flex-1">
+                            <p className={`text-sm font-medium ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
+                              {info.title}
+                            </p>
+                            <p className="text-xs text-slate-400">{info.estimatedDuration} min</p>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button 
+                  onClick={handleSaveInterviewSettings}
+                  className="text-indigo-500 font-semibold text-sm hover:underline"
+                >
+                  Save Interview Settings
                 </button>
               </div>
             </div>
