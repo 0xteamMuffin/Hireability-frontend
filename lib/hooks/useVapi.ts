@@ -27,12 +27,14 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
     const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
     const [callId, setCallId] = useState<string | null>(null);
     const [interviewId, setInterviewId] = useState<string | null>(null);
+    const [isCallEnding, setIsCallEnding] = useState(false);
     const interviewIdRef = useRef<string | null>(null);
     const callIdRef = useRef<string | null>(null);
     const conversationRef = useRef<ConversationEntry[]>([]);
     const userRef = useRef<User | null>(user);
     const callStartedAtRef = useRef<Date | null>(null);
     const activeAssistantIdRef = useRef<string | null>(null);
+    const callEndResolveRef = useRef<(() => void) | null>(null);
 
     const timeFormatter = useMemo(
         () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
@@ -138,6 +140,7 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
 
         clientAny.on('call-end', async () => {
             console.log('[call-end] fired', { interviewId: interviewIdRef.current, callId: callIdRef.current });
+            setIsCallEnding(true);
             setCallStatus('idle');
             setIsSpeaking(false);
             const endedAt = new Date();
@@ -145,14 +148,26 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
             const currentInterviewId = interviewIdRef.current;
             const currentCallId = callIdRef.current;
 
-            if (!currentInterviewId) {
-                console.warn('[call-end] missing interviewId, skipping persist');
+            const cleanup = () => {
                 setCallStartedAt(null);
                 callStartedAtRef.current = null;
                 setActiveAssistantId(null);
                 activeAssistantIdRef.current = null;
                 setInterviewId(null);
                 interviewIdRef.current = null;
+                setCallId(null);
+                callIdRef.current = null;
+                setIsCallEnding(false);
+                // Resolve the promise so stopInterview knows we're done
+                if (callEndResolveRef.current) {
+                    callEndResolveRef.current();
+                    callEndResolveRef.current = null;
+                }
+            };
+
+            if (!currentInterviewId) {
+                console.warn('[call-end] missing interviewId, skipping persist');
+                cleanup();
                 return;
             }
 
@@ -168,25 +183,24 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
             }
 
             try {
+                // Save transcript first
                 await persistTranscript(endedAt);
 
-                // Persist call metadata + trigger backend-side pause analysis + send expressions
+                // Persist call metadata - await this one as it's essential
                 if (currentCallId) {
-                    vapiApi
-                        .saveCallMetadata({
+                    try {
+                        await vapiApi.saveCallMetadata({
                             interviewId: currentInterviewId,
                             callId: currentCallId,
                             averageExpressions: averageExpressions,
-                        })
-                        .then(() => {
-                            console.log('[call-end] saveCallMetadata success with expressions');
-                        })
-                        .catch((err) => {
-                            console.error('[call-end] saveCallMetadata error:', err);
                         });
+                        console.log('[call-end] saveCallMetadata success with expressions');
+                    } catch (err) {
+                        console.error('[call-end] saveCallMetadata error:', err);
+                    }
                 }
 
-                // Automatically trigger analysis after saving transcript
+                // Fire-and-forget: trigger analysis in backend (don't wait for it)
                 console.log('[call-end] triggering automatic analysis for interview:', currentInterviewId);
                 vapiApi.analyzeInterview(currentInterviewId)
                     .then((resp) => {
@@ -199,18 +213,13 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
                     .catch((err) => {
                         console.error('[call-end] analysis error:', err);
                     });
+
+                console.log('[call-end] essential operations completed, analysis running in background');
             } catch (err) {
                 console.error('Failed to save transcript', err);
                 setVapiError('Failed to save transcript');
             } finally {
-                setCallStartedAt(null);
-                callStartedAtRef.current = null;
-                setActiveAssistantId(null);
-                activeAssistantIdRef.current = null;
-                setInterviewId(null);
-                interviewIdRef.current = null;
-                setCallId(null);
-                callIdRef.current = null;
+                cleanup();
             }
         });
 
@@ -353,12 +362,38 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
         }
     };
 
-    const stopInterview = async () => {
-        try {
-            await vapiClient?.stop();
-        } finally {
-            setCallStatus('idle');
-        }
+    const stopInterview = async (): Promise<void> => {
+        return new Promise((resolve) => {
+            // Store the resolve function so call-end handler can call it
+            callEndResolveRef.current = resolve;
+            
+            // Set a timeout in case call-end never fires
+            const timeout = setTimeout(() => {
+                console.warn('[stopInterview] timeout waiting for call-end');
+                callEndResolveRef.current = null;
+                setCallStatus('idle');
+                setIsCallEnding(false);
+                resolve();
+            }, 15000); // 15 second timeout
+
+            // Override resolve to also clear timeout
+            const originalResolve = callEndResolveRef.current;
+            callEndResolveRef.current = () => {
+                clearTimeout(timeout);
+                originalResolve?.();
+            };
+
+            try {
+                vapiClient?.stop();
+            } catch (err) {
+                console.error('[stopInterview] error stopping client:', err);
+                clearTimeout(timeout);
+                callEndResolveRef.current = null;
+                setCallStatus('idle');
+                setIsCallEnding(false);
+                resolve();
+            }
+        });
     };
 
     return {
@@ -371,5 +406,6 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
         conversation,
         startInterview,
         stopInterview,
+        isCallEnding,
     };
 };

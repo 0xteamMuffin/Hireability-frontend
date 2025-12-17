@@ -103,6 +103,7 @@ const Meeting: React.FC = () => {
         conversation,
         startInterview,
         stopInterview,
+        isCallEnding,
     } = useVapi({ 
         user, 
         targetId,
@@ -139,17 +140,23 @@ const Meeting: React.FC = () => {
 
     // Handle round completion
     const handleRoundComplete = async () => {
-        if (!sessionId || !roundId) return;
+        if (!sessionId || !roundId) {
+            // If no session context, just go to analytics
+            router.push('/dashboard/analytics');
+            return;
+        }
         
         try {
             await sessionApi.completeRound({
                 sessionId,
                 roundId,
             });
-            // Navigate back to round selection
-            router.push(`/interview?targetId=${targetId || ''}`);
+            // Navigate back to interviews page to continue session
+            router.push('/dashboard/interviews');
         } catch (err) {
             console.error('Failed to complete round:', err);
+            // Still navigate to interviews page even on error - user can retry from there
+            router.push('/dashboard/interviews');
         }
     };
 
@@ -213,6 +220,17 @@ const Meeting: React.FC = () => {
                 >
                     Refresh Page
                 </button>
+            </div>
+        );
+    }
+
+    // Show saving screen when call is ending
+    if (isCallEnding) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-[#202124] text-white">
+                <Loader2 size={48} className="animate-spin text-green-400 mb-4" />
+                <p className="text-base md:text-lg text-white/80">Saving your interview...</p>
+                <p className="text-sm text-white/60 mt-2">Please wait while we analyze your session</p>
             </div>
         );
     }

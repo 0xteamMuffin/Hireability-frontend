@@ -31,19 +31,30 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
     const [isEnding, setIsEnding] = useState(false);
 
     const handleLeaveCall = async () => {
+        if (isEnding) return; // Prevent double-click
+        
         setIsEnding(true);
         try {
+            console.log('[handleLeaveCall] stopping interview...');
+            // stopInterview now waits for call-end handler to complete all async operations
             await onStopInterview();
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log('[handleLeaveCall] interview stopped, all data saved');
+            
+            // Small delay for UI feedback
+            await new Promise(resolve => setTimeout(resolve, 500));
             
             // If we're in a session, complete the round and go back to round selection
             if (showCompleteButton && onRoundComplete) {
+                console.log('[handleLeaveCall] completing round...');
                 await onRoundComplete();
             } else {
+                console.log('[handleLeaveCall] navigating to analytics...');
                 router.push('/dashboard/analytics');
             }
         } catch (error) {
             console.error('Error ending interview:', error);
+        } finally {
+            // Always reset isEnding, navigation will unmount the component anyway
             setIsEnding(false);
         }
     };
