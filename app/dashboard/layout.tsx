@@ -33,7 +33,8 @@ export default function DashboardLayout({
         <Sidebar />
 
         {/* --- PAGE CONTENT --- */}
-        <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 pt-20 md:pt-6">
+        {/* Added 'md:pl-64' to push content to the right of the fixed sidebar */}
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 pt-20 md:pt-6 md:pl-64">
           <div className="max-w-5xl mx-auto">{children}</div>
         </main>
       </div>
