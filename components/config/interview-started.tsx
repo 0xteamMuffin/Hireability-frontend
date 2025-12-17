@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Mail, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { Mail, ArrowRight, Loader2 } from "lucide-react";
+import { sessionApi } from "@/lib/api";
 
 interface InterviewStartBarProps {
   selectedCompany: {
@@ -42,7 +44,29 @@ const getCompanyStyle = (companyName: string) => {
 export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
   selectedCompany,
 }) => {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
   const style = getCompanyStyle(selectedCompany.companyName);
+
+  const handleCreateSession = async () => {
+    if (isCreating) return;
+    
+    setIsCreating(true);
+    try {
+      const targetId = selectedCompany.id === "default-profile" ? undefined : selectedCompany.id;
+      const response = await sessionApi.createSession({ targetId });
+      
+      if (response.success) {
+        router.push("/dashboard/interviews");
+      } else {
+        console.error("Failed to create session:", response.error);
+        setIsCreating(false);
+      }
+    } catch (error) {
+      console.error("Error creating session:", error);
+      setIsCreating(false);
+    }
+  };
 
   return (
     <motion.div
@@ -69,15 +93,26 @@ export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
           </div>
         </div>
 
-        <Link href={`/interview?targetId=${selectedCompany.id}`}>
-          <button className="bg-indigo-400 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer">
-            Configure Interview
-            <ArrowRight
-              size={20}
-              className="group-hover:translate-x-1 transition-transform"
-            />
-          </button>
-        </Link>
+        <button 
+          onClick={handleCreateSession}
+          disabled={isCreating}
+          className="bg-indigo-400 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
+          {isCreating ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              Create Interview Session
+              <ArrowRight
+                size={20}
+                className="group-hover:translate-x-1 transition-transform"
+              />
+            </>
+          )}
+        </button>
       </div>
     </motion.div>
   );
