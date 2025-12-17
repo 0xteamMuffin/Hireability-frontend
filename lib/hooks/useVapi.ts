@@ -194,27 +194,13 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
                             callId: currentCallId,
                             averageExpressions: averageExpressions,
                         });
-                        console.log('[call-end] saveCallMetadata success with expressions');
+                        console.log('[call-end] saveCallMetadata success - backend will auto-analyze');
                     } catch (err) {
                         console.error('[call-end] saveCallMetadata error:', err);
                     }
                 }
 
-                // Fire-and-forget: trigger analysis in backend (don't wait for it)
-                console.log('[call-end] triggering automatic analysis for interview:', currentInterviewId);
-                vapiApi.analyzeInterview(currentInterviewId)
-                    .then((resp) => {
-                        if (resp.success) {
-                            console.log('[call-end] analysis completed successfully');
-                        } else {
-                            console.warn('[call-end] analysis failed:', resp.error);
-                        }
-                    })
-                    .catch((err) => {
-                        console.error('[call-end] analysis error:', err);
-                    });
-
-                console.log('[call-end] essential operations completed, analysis running in background');
+                console.log('[call-end] essential operations completed');
             } catch (err) {
                 console.error('Failed to save transcript', err);
                 setVapiError('Failed to save transcript');
