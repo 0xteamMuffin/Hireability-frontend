@@ -3,7 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 // Initialize AI
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY });
 
 export async function generateResumeReview(resumeData: any, targets: any[]) {
   try {
