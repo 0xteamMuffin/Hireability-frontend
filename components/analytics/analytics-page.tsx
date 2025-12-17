@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Layers,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -82,6 +83,7 @@ const AnalyticsPage = () => {
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [interviews, setInterviews] = useState<InterviewWithAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingInterview, setDeletingInterview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
@@ -115,6 +117,24 @@ const AnalyticsPage = () => {
 
     fetchData();
   }, [authLoading, user]);
+
+  const handleDeleteInterview = async (interviewId: string) => {
+    if (!confirm('Are you sure you want to delete this interview record? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setDeletingInterview(interviewId);
+      await vapiApi.deleteInterview(interviewId);
+      setInterviews(prev => prev.filter(i => i.id !== interviewId));
+    } catch (err) {
+      console.error('Failed to delete interview:', err);
+      alert('Failed to delete interview. Please try again.');
+    } finally {
+      setDeletingInterview(interviewId);
+      setDeletingInterview(null);
+    }
+  };
 
   // Filter interviews if sessionId is provided
   const filteredInterviews = filterSessionId 
@@ -337,6 +357,18 @@ const AnalyticsPage = () => {
                       </div>
 
                       <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => handleDeleteInterview(interview.id)}
+                          disabled={deletingInterview === interview.id}
+                          className="text-red-400 hover:text-red-500 p-2 rounded-full transition-all hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                          title="Delete Interview"
+                        >
+                          {deletingInterview === interview.id ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </button>
                         {score !== null && (
                           <div className="flex items-center gap-2">
                             <div className={`w-16 h-16 rounded-full flex items-center justify-center ${

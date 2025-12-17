@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History, Calendar, CheckCircle2, MoreVertical, Loader2 } from "lucide-react";
+import { History, Calendar, CheckCircle2, MoreVertical, Loader2, Trash2 } from "lucide-react";
 import { vapiApi } from "@/lib/api";
 import { useAuth } from "@/lib/hooks";
 import { InterviewWithAnalysis } from "@/lib/types";
@@ -10,6 +10,7 @@ export const HistoryPage = () => {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState<InterviewWithAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInterviews = async () => {
@@ -28,6 +29,22 @@ export const HistoryPage = () => {
 
     fetchInterviews();
   }, [user]);
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this interview?")) return;
+
+    try {
+      setDeletingId(id);
+      await vapiApi.deleteInterview(id);
+      setInterviews((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error("Failed to delete interview", error);
+      alert("Failed to delete interview");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -111,8 +128,16 @@ export const HistoryPage = () => {
                   <div className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1.5">
                     <CheckCircle2 size={12} /> {item.endedAt ? "Completed" : "In Progress"}
                   </div>
-                  <button className="text-slate-400 hover:text-indigo-400">
-                    <MoreVertical size={20} />
+                  <button 
+                    onClick={(e) => handleDelete(e, item.id)}
+                    disabled={deletingId === item.id}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    {deletingId === item.id ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={18} />
+                    )}
                   </button>
                 </div>
               </div>

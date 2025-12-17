@@ -75,4 +75,11 @@ export const sessionApi = {
   abandonSession: async (sessionId: string): Promise<ApiResponse<InterviewSession>> => {
     return apiClient.post(`/api/sessions/${sessionId}/abandon`, {});
   },
+
+  /**
+   * Delete a session
+   */
+  deleteSession: async (sessionId: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete(`/api/sessions/${sessionId}`);
+  },
 };

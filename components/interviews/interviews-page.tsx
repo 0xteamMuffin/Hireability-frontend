@@ -23,6 +23,7 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -99,6 +100,7 @@ const InterviewsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [abandoningSession, setAbandoningSession] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [startingRound, setStartingRound] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -186,6 +188,23 @@ const InterviewsPage = () => {
       console.error('Failed to abandon session:', err);
     } finally {
       setAbandoningSession(null);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this session? All associated data will be permanently removed.')) {
+      return;
+    }
+    
+    try {
+      setDeletingSession(sessionId);
+      await sessionApi.deleteSession(sessionId);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+      alert('Failed to delete session. Please try again.');
+    } finally {
+      setDeletingSession(null);
     }
   };
 
@@ -401,6 +420,18 @@ const InterviewsPage = () => {
 
                   {/* Actions */}
                   <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => handleDeleteSession(session.id)}
+                      disabled={deletingSession === session.id}
+                      className="text-red-400 hover:text-red-500 p-2.5 rounded-full transition-all flex items-center gap-2 border border-red-100 hover:border-red-200 hover:bg-red-50"
+                      title="Delete Session"
+                    >
+                      {deletingSession === session.id ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={18} />
+                      )}
+                    </button>
                     {isActive && (
                       <>
                         <button
