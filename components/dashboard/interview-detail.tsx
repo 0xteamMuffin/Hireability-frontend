@@ -230,15 +230,15 @@ const DimensionCard: React.FC<DimensionCardProps> = ({
           <div>
             <div className="flex items-center gap-2 relative">
               <h3 className="font-bold text-slate-800 text-lg">{title}</h3>
-              
+
               {/* Tooltip Wrapper */}
-              <div 
+              <div
                 className="relative cursor-help"
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
               >
                 <Info size={16} className="text-slate-400 hover:text-indigo-500 transition-colors" />
-                
+
                 {/* Tooltip Content */}
                 <AnimatePresence>
                   {showTooltip && (
@@ -383,59 +383,59 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
   const overallScore = interview.analysis?.overall?.score ?? null;
 
   const dimensions = [
-    { 
-        title: "Problem Solving", 
-        icon: <Lightbulb size={20} />, 
-        dimension: interview.analysis?.problemSolving, 
-        weight: "20%", 
-        color: "#3b82f6", 
-        gradient: "bg-gradient-to-br from-blue-400 to-blue-600",
-        calculationLogic: "Evaluated based on the user's responses to problem scenarios provided."
+    {
+      title: "Problem Solving",
+      icon: <Lightbulb size={20} />,
+      dimension: interview.analysis?.problemSolving,
+      weight: "20%",
+      color: "#3b82f6",
+      gradient: "bg-gradient-to-br from-blue-400 to-blue-600",
+      calculationLogic: "Evaluated based on the user's responses to problem scenarios provided."
     },
-    { 
-        title: "Technical Skills", 
-        icon: <Code size={20} />, 
-        dimension: interview.analysis?.technical, 
-        weight: "20%", 
-        color: "#a855f7", 
-        gradient: "bg-gradient-to-br from-purple-400 to-purple-600",
-        calculationLogic: "Evaluated based on the accuracy and depth of technical responses given by the user."
+    {
+      title: "Technical Skills",
+      icon: <Code size={20} />,
+      dimension: interview.analysis?.technical,
+      weight: "20%",
+      color: "#a855f7",
+      gradient: "bg-gradient-to-br from-purple-400 to-purple-600",
+      calculationLogic: "Evaluated based on the accuracy and depth of technical responses given by the user."
     },
-    { 
-        title: "Role Knowledge", 
-        icon: <Briefcase size={20} />, 
-        dimension: interview.analysis?.roleKnowledge, 
-        weight: "20%", 
-        color: "#22c55e", 
-        gradient: "bg-gradient-to-br from-green-400 to-green-600",
-        calculationLogic: "Calculated by checking role knowledge against the specific context and job applied for."
+    {
+      title: "Role Knowledge",
+      icon: <Briefcase size={20} />,
+      dimension: interview.analysis?.roleKnowledge,
+      weight: "20%",
+      color: "#22c55e",
+      gradient: "bg-gradient-to-br from-green-400 to-green-600",
+      calculationLogic: "Calculated by checking role knowledge against the specific context and job applied for."
     },
-    { 
-        title: "Experience", 
-        icon: <TrendingUp size={20} />, 
-        dimension: interview.analysis?.experience, 
-        weight: "15%", 
-        color: "#f97316", 
-        gradient: "bg-gradient-to-br from-orange-400 to-orange-600",
-        calculationLogic: "Assessed by cross-referencing the resume details with experience mentioned during the talk."
+    {
+      title: "Experience",
+      icon: <TrendingUp size={20} />,
+      dimension: interview.analysis?.experience,
+      weight: "15%",
+      color: "#f97316",
+      gradient: "bg-gradient-to-br from-orange-400 to-orange-600",
+      calculationLogic: "Assessed by cross-referencing the resume details with experience mentioned during the talk."
     },
-    { 
-        title: "Communication", 
-        icon: <MessageSquare size={20} />, 
-        dimension: interview.analysis?.communication, 
-        weight: "15%", 
-        color: "#ec4899", 
-        gradient: "bg-gradient-to-br from-pink-400 to-pink-600",
-        calculationLogic: "Analyzed through voice processing, clarity, and articulation evaluation."
+    {
+      title: "Communication",
+      icon: <MessageSquare size={20} />,
+      dimension: interview.analysis?.communication,
+      weight: "15%",
+      color: "#ec4899",
+      gradient: "bg-gradient-to-br from-pink-400 to-pink-600",
+      calculationLogic: "Analyzed through voice processing, clarity, and articulation evaluation."
     },
-    { 
-        title: "Professionalism", 
-        icon: <User size={20} />, 
-        dimension: interview.analysis?.professional, 
-        weight: "10%", 
-        color: "#6366f1", 
-        gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600",
-        calculationLogic: "Determined by evaluating expression usage."
+    {
+      title: "Professionalism",
+      icon: <User size={20} />,
+      dimension: interview.analysis?.professional,
+      weight: "10%",
+      color: "#6366f1",
+      gradient: "bg-gradient-to-br from-indigo-400 to-indigo-600",
+      calculationLogic: "Determined by evaluating expression usage."
     },
   ];
 
@@ -456,14 +456,14 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
         </button>
 
         <div className="flex gap-3">
-            <button
+          <button
             onClick={handleRetryAnalysis}
             disabled={analyzing}
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-            >
+          >
             {analyzing ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
             <span className="font-medium">{analyzing ? "Analyzing..." : "Regenerate AI Analysis"}</span>
-            </button>
+          </button>
         </div>
       </div>
 
@@ -471,102 +471,102 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Score Card */}
         <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-linear-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white p-8 shadow-xl shadow-indigo-200"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-linear-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white p-8 shadow-xl shadow-indigo-200"
         >
-            <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <div className="absolute bottom-0 left-0 p-32 bg-purple-500/20 rounded-full blur-3xl -ml-16 -mb-16"></div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 h-full">
-                <div className="flex-1 space-y-2 text-center md:text-left">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium backdrop-blur-md mb-2">
-                        <Award size={14} />
-                        <span>AI Interview Analysis</span>
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight">{role}</h1>
-                    <p className="text-indigo-100 text-lg opacity-90">{companyName}</p>
-                    
-                    <div className="pt-6 flex flex-wrap gap-4 justify-center md:justify-start">
-                        <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
-                            <Calendar size={16} className="opacity-70" />
-                            <span className="text-sm">{formatDate(interview.startedAt)}</span>
-                        </div>
-                    </div>
-                </div>
+          <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 p-32 bg-purple-500/20 rounded-full blur-3xl -ml-16 -mb-16"></div>
 
-                {overallScore !== null && (
-                    <div className="flex flex-col items-center">
-                          <div className="relative">
-                            <svg className="w-40 h-40 transform -rotate-90">
-                                <circle cx="80" cy="80" r="70" fill="transparent" stroke="rgba(255,255,255,0.2)" strokeWidth="12" />
-                                <motion.circle
-                                    cx="80" cy="80" r="70"
-                                    fill="transparent"
-                                    stroke="#fff"
-                                    strokeWidth="12"
-                                    strokeLinecap="round"
-                                    strokeDasharray={440}
-                                    strokeDashoffset={440 - (440 * overallScore) / 100}
-                                    initial={{ strokeDashoffset: 440 }}
-                                    animate={{ strokeDashoffset: 440 - (440 * overallScore) / 100 }}
-                                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-5xl font-bold tracking-tighter">{overallScore}</span>
-                                <span className="text-sm uppercase tracking-widest opacity-70">Overall</span>
-                            </div>
-                        </div>
-                        <div className="mt-4 flex gap-1">
-                             {[...Array(5)].map((_, i) => (
-                                <Star key={i} size={20} className={i < Math.round(overallScore / 20) ? "text-yellow-400 fill-yellow-400" : "text-indigo-900/40"} />
-                             ))}
-                        </div>
-                    </div>
-                )}
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 h-full">
+            <div className="flex-1 space-y-2 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium backdrop-blur-md mb-2">
+                <Award size={14} />
+                <span>AI Interview Analysis</span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">{role}</h1>
+              <p className="text-indigo-100 text-lg opacity-90">{companyName}</p>
+
+              <div className="pt-6 flex flex-wrap gap-4 justify-center md:justify-start">
+                <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
+                  <Calendar size={16} className="opacity-70" />
+                  <span className="text-sm">{formatDate(interview.startedAt)}</span>
+                </div>
+              </div>
             </div>
+
+            {overallScore !== null && (
+              <div className="flex flex-col items-center">
+                <div className="relative">
+                  <svg className="w-40 h-40 transform -rotate-90">
+                    <circle cx="80" cy="80" r="70" fill="transparent" stroke="rgba(255,255,255,0.2)" strokeWidth="12" />
+                    <motion.circle
+                      cx="80" cy="80" r="70"
+                      fill="transparent"
+                      stroke="#fff"
+                      strokeWidth="12"
+                      strokeLinecap="round"
+                      strokeDasharray={440}
+                      strokeDashoffset={440 - (440 * overallScore) / 100}
+                      initial={{ strokeDashoffset: 440 }}
+                      animate={{ strokeDashoffset: 440 - (440 * overallScore) / 100 }}
+                      transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-5xl font-bold tracking-tighter">{overallScore}</span>
+                    <span className="text-sm uppercase tracking-widest opacity-70">Overall</span>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={20} className={i < Math.round(overallScore / 20) ? "text-yellow-400 fill-yellow-400" : "text-indigo-900/40"} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Quick Stats / Summary Radar Equivalent */}
         <motion.div
-             initial={{ y: 20, opacity: 0 }}
-             animate={{ y: 0, opacity: 1 }}
-             transition={{ delay: 0.2 }}
-             className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg shadow-slate-100 flex flex-col justify-center"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg shadow-slate-100 flex flex-col justify-center"
         >
-            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <TrendingUp className="text-indigo-600" size={20}/>
-                Performance Breakdown
-            </h3>
-            <div className="space-y-5">
-                {dimensions.slice(0, 4).map((d, i) => (
-                    d.dimension?.score && (
-                        <HorizontalBar key={i} label={d.title} score={d.dimension.score} color={d.color} />
-                    )
-                ))}
-            </div>
+          <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <TrendingUp className="text-indigo-600" size={20} />
+            Performance Breakdown
+          </h3>
+          <div className="space-y-5">
+            {dimensions.slice(0, 4).map((d, i) => (
+              d.dimension?.score && (
+                <HorizontalBar key={i} label={d.title} score={d.dimension.score} color={d.color} />
+              )
+            ))}
+          </div>
         </motion.div>
       </div>
 
       {/* Detailed Analysis Grid */}
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-800">Detailed Feedback</h2>
-            <div className="h-px flex-1 bg-slate-200"></div>
+          <h2 className="text-2xl font-bold text-slate-800">Detailed Feedback</h2>
+          <div className="h-px flex-1 bg-slate-200"></div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {dimensions.map((dim, idx) => (
+          {dimensions.map((dim, idx) => (
             <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + idx * 0.05 }}
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + idx * 0.05 }}
             >
-                <DimensionCard {...dim} />
+              <DimensionCard {...dim} />
             </motion.div>
-            ))}
+          ))}
         </div>
       </div>
 
@@ -580,48 +580,77 @@ export const InterviewDetail: React.FC<{ interviewId: string }> = ({
         >
           <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <MessageSquare className="text-indigo-500" />
-                Interview Transcript
+              <MessageSquare className="text-indigo-500" />
+              Interview Transcript
             </h2>
             <span className="text-xs font-medium px-3 py-1 bg-white border border-slate-200 rounded-full text-slate-500">
-                {interview.transcripts[0].transcript && Array.isArray(interview.transcripts[0].transcript) 
-                 ? `${interview.transcripts[0].transcript.length} messages` 
-                 : 'No messages'}
+              {(() => {
+                const transcript = interview.transcripts[0].transcript;
+                if (!transcript) return 'No messages';
+
+                // Handle object with numeric keys
+                if (typeof transcript === 'object' && !Array.isArray(transcript)) {
+                  const messageCount = Object.keys(transcript).filter(key =>
+                    !['status', 'utterances', 'pauseMetrics', 'averageExpressions'].includes(key)
+                  ).length;
+                  return `${messageCount} messages`;
+                }
+
+                // Handle array (legacy)
+                if (Array.isArray(transcript)) {
+                  return `${transcript.length} messages`;
+                }
+
+                return 'No messages';
+              })()}
             </span>
           </div>
-          
+
           <div className="p-6 max-h-[600px] overflow-y-auto space-y-6 bg-slate-50/30">
-            {Array.isArray(interview.transcripts[0].transcript) && (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (interview.transcripts[0].transcript as any[]).map((entry, idx) => {
+            {(() => {
+              const transcript = interview.transcripts[0].transcript;
+              if (!transcript) return null;
+
+              // Convert object with numeric keys to array
+              let messages: any[] = [];
+
+              if (typeof transcript === 'object' && !Array.isArray(transcript)) {
+                // Extract only numeric keys (skip status, utterances, etc.)
+                messages = Object.keys(transcript)
+                  .filter(key => !isNaN(Number(key)))
+                  .sort((a, b) => Number(a) - Number(b))
+                  .map(key => transcript[key]);
+              } else if (Array.isArray(transcript)) {
+                messages = transcript;
+              }
+
+              return messages.map((entry, idx) => {
                 const isUser = entry.role === "user";
                 return (
                   <div key={idx} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                     <div className={`flex max-w-[80%] md:max-w-[70%] gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-                        
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm ${
-                            isUser ? "bg-indigo-600 text-white" : "bg-white text-slate-600 border border-slate-200"
-                        }`}>
-                            {isUser ? <User size={14} /> : <Zap size={14} className="fill-slate-600" />}
-                        </div>
 
-                        <div className={`p-4 shadow-sm relative group ${
-                            isUser 
-                            ? "bg-indigo-600 text-white rounded-2xl rounded-tr-sm" 
-                            : "bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm"
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm ${isUser ? "bg-indigo-600 text-white" : "bg-white text-slate-600 border border-slate-200"
                         }`}>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
-                            {entry.timestamp && (
-                                <span className={`text-[10px] absolute -bottom-5 ${isUser ? "right-1 text-slate-400" : "left-1 text-slate-400"} opacity-0 group-hover:opacity-100 transition-opacity`}>
-                                    {entry.timestamp}
-                                </span>
-                            )}
-                        </div>
+                        {isUser ? <User size={14} /> : <Zap size={14} className="fill-slate-600" />}
+                      </div>
+
+                      <div className={`p-4 shadow-sm relative group ${isUser
+                          ? "bg-indigo-600 text-white rounded-2xl rounded-tr-sm"
+                          : "bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-sm"
+                        }`}>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
+                        {entry.timestamp && (
+                          <span className={`text-[10px] absolute -bottom-5 ${isUser ? "right-1 text-slate-400" : "left-1 text-slate-400"} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                            {entry.timestamp}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         </motion.div>
       )}
