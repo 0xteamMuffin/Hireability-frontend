@@ -137,6 +137,8 @@ export interface StartInterviewPayload {
   callId?: string | null;
   startedAt?: string | null;
   contextPrompt?: string | null;
+  sessionId?: string;
+  roundType?: string;
 }
 
 export interface AnalysisDimension {

@@ -282,7 +282,7 @@ export const DashboardHome = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-slate-800">Recent Sessions</h3>
           <Link
-            href="/dashboard/analytics"
+            href="/dashboard/interviews"
             className="text-sm font-medium text-indigo-400 hover:text-indigo-500 flex items-center gap-1"
           >
             View All
@@ -314,7 +314,7 @@ export const DashboardHome = () => {
                   transition={{ delay: idx * 0.05 }}
                 >
                   <Link
-                    href={`/dashboard/analytics/session/${session.id}`}
+                    href="/dashboard/interviews"
                     className="block"
                   >
                     <div className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer group">

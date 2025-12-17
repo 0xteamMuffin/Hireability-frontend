@@ -11,11 +11,12 @@ interface User {
 interface UseVapiProps {
     user: User | null;
     targetId?: string | null;
+    sessionId?: string | null;
     roundType?: string;
     getAverageExpressions?: () => Record<string, number>;
 }
 
-export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: UseVapiProps) => {
+export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpressions }: UseVapiProps) => {
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -280,6 +281,8 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
             const interviewResp = await vapiApi.startInterview({
                 assistantId,
                 contextPrompt: context?.systemPrompt || null,
+                sessionId: sessionId || undefined,
+                roundType: roundType || undefined,
             });
             if (!interviewResp.success || !interviewResp.data) {
                 setCallStatus('idle');
@@ -393,5 +396,6 @@ export const useVapi = ({ user, targetId, roundType, getAverageExpressions }: Us
         startInterview,
         stopInterview,
         isCallEnding,
+        interviewId,
     };
 };

@@ -22,7 +22,7 @@ import {
   ArrowRight,
   Trash2,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { vapiApi, sessionApi } from "@/lib/api";
@@ -30,10 +30,10 @@ import {
   InterviewWithAnalysis, 
   AnalysisDimension, 
   InterviewSession, 
-  RoundType, 
+  RoundType,
   InterviewStatus,
   SessionStatus,
-  ROUND_DISPLAY_INFO 
+  ROUND_DISPLAY_INFO
 } from "@/lib/types";
 import { useAuth } from "@/lib/hooks";
 
@@ -77,8 +77,6 @@ const getOverallScore = (interview: InterviewWithAnalysis): number | null => {
 
 const AnalyticsPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const filterSessionId = searchParams.get('sessionId');
   const { user, isLoading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [interviews, setInterviews] = useState<InterviewWithAnalysis[]>([]);
@@ -86,7 +84,7 @@ const AnalyticsPage = () => {
   const [deletingInterview, setDeletingInterview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 6;
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -118,6 +116,20 @@ const AnalyticsPage = () => {
     fetchData();
   }, [authLoading, user]);
 
+  const completedSessions = sessions.filter(s => s.status === SessionStatus.COMPLETED);
+  const totalRoundsCompleted = sessions.reduce((acc, s) => 
+    acc + s.rounds.filter(r => r.status === InterviewStatus.COMPLETED).length, 0
+  );
+  
+  const scoredInterviews = interviews.filter(i => getOverallScore(i) !== null);
+  const avgScore = scoredInterviews.length > 0 
+    ? scoredInterviews.reduce((acc, i) => acc + (getOverallScore(i) || 0), 0) / scoredInterviews.length
+    : 0;
+
+  const bestScore = scoredInterviews.length > 0
+    ? Math.max(...scoredInterviews.map(i => getOverallScore(i) || 0))
+    : 0;
+
   const handleDeleteInterview = async (interviewId: string) => {
     if (!confirm('Are you sure you want to delete this interview record? This cannot be undone.')) {
       return;
@@ -131,46 +143,13 @@ const AnalyticsPage = () => {
       console.error('Failed to delete interview:', err);
       alert('Failed to delete interview. Please try again.');
     } finally {
-      setDeletingInterview(interviewId);
       setDeletingInterview(null);
     }
   };
 
-  // Filter interviews if sessionId is provided
-  const filteredInterviews = filterSessionId 
-    ? interviews.filter(i => i.sessionId === filterSessionId)
-    : interviews;
-
-  // Calculate stats
-  const completedSessions = sessions.filter(s => s.status === SessionStatus.COMPLETED);
-  const totalRoundsCompleted = sessions.reduce((acc, s) => 
-    acc + s.rounds.filter(r => r.status === InterviewStatus.COMPLETED).length, 0
-  );
-  
-  const scoredInterviews = filteredInterviews.filter(i => getOverallScore(i) !== null);
-  const avgScore = scoredInterviews.length > 0 
-    ? scoredInterviews.reduce((acc, i) => acc + (getOverallScore(i) || 0), 0) / scoredInterviews.length
-    : 0;
-
-  // Best score
-  const bestScore = scoredInterviews.length > 0
-    ? Math.max(...scoredInterviews.map(i => getOverallScore(i) || 0))
-    : 0;
-
-  // Round type breakdown
-  const roundTypeStats = Object.values(RoundType).map(type => {
-    const typeInterviews = filteredInterviews.filter(i => i.roundType === type);
-    const typeScored = typeInterviews.filter(i => getOverallScore(i) !== null);
-    const avgTypeScore = typeScored.length > 0
-      ? typeScored.reduce((acc, i) => acc + (getOverallScore(i) || 0), 0) / typeScored.length
-      : 0;
-    return {
-      type,
-      total: typeInterviews.length,
-      avgScore: avgTypeScore,
-      info: ROUND_DISPLAY_INFO[type],
-    };
-  }).filter(s => s.total > 0);
+  const handleViewInterview = (interviewId: string) => {
+    router.push(`/dashboard/analytics/${interviewId}`);
+  };
 
   const statCards = [
     {
@@ -203,10 +182,6 @@ const AnalyticsPage = () => {
     },
   ];
 
-  const handleViewInterview = (interviewId: string) => {
-    router.push(`/dashboard/analytics/${interviewId}`);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -229,6 +204,8 @@ const AnalyticsPage = () => {
     );
   }
 
+  const hasData = interviews.length > 0 || sessions.length > 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -236,31 +213,16 @@ const AnalyticsPage = () => {
       transition={{ duration: 0.3 }}
       className="space-y-8"
     >
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-1">
-            Analytics
-          </h1>
-          <p className="text-slate-500">
-            {filterSessionId 
-              ? "Viewing analytics for selected session"
-              : "Track your interview performance and progress"
-            }
-          </p>
-        </div>
-        {filterSessionId && (
-          <button
-            onClick={() => router.push('/dashboard/analytics')}
-            className="text-indigo-400 hover:text-indigo-500 font-medium text-sm"
-          >
-            View All Analytics
-          </button>
-        )}
+      <header>
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-1">
+          Analytics
+        </h1>
+        <p className="text-slate-500">
+          Track your interview performance and progress
+        </p>
       </header>
 
-      {/* No Data State */}
-      {filteredInterviews.length === 0 && (
+      {!hasData && (
         <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 text-center">
           <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <BarChart2 size={36} className="text-indigo-300" />
@@ -278,8 +240,7 @@ const AnalyticsPage = () => {
         </section>
       )}
 
-      {/* Stats Grid */}
-      {filteredInterviews.length > 0 && (
+      {hasData && (
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {statCards.map((stat, idx) => (
@@ -304,131 +265,131 @@ const AnalyticsPage = () => {
             ))}
           </section>
 
-          {/* Interview Results */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-slate-800">Interview Results</h3>
-              <span className="text-sm text-slate-500">
-                {filteredInterviews.length} total
-              </span>
-            </div>
-            <div className="space-y-3">
-              {filteredInterviews
-                .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                .map((interview, idx) => {
-                const score = getOverallScore(interview);
-                const duration = interview.durationSeconds ? Math.floor(interview.durationSeconds / 60) : null;
-                
-                return (
-                  <motion.div
-                    key={interview.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all group"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl text-white shadow-lg ${
-                          interview.roundType ? 'bg-indigo-400' : 'bg-slate-400'
-                        }`}>
-                          {interview.roundType ? ROUND_ICONS[interview.roundType as RoundType] : <Target size={20} />}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">
-                            {interview.roundType 
-                              ? ROUND_DISPLAY_INFO[interview.roundType as RoundType]?.title || 'Interview'
-                              : 'Mock Interview'
-                            }
-                          </h4>
-                          <div className="flex items-center gap-3 text-sm text-slate-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar size={14} />
-                              {formatDate(interview.startedAt)}
-                            </span>
-                            {duration && (
+          {/* Interview History */}
+          {interviews.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-800">Interview History</h3>
+                <span className="text-sm text-slate-500">
+                  {interviews.length} interview{interviews.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {interviews
+                  .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                  .map((interview, idx) => {
+                  const score = getOverallScore(interview);
+                  const duration = interview.durationSeconds ? Math.floor(interview.durationSeconds / 60) : null;
+                  
+                  return (
+                    <motion.div
+                      key={interview.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all group"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-xl text-white shadow-lg ${
+                            interview.roundType ? 'bg-indigo-400' : 'bg-slate-400'
+                          }`}>
+                            {interview.roundType ? ROUND_ICONS[interview.roundType as RoundType] : <Target size={18} />}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800">
+                              {interview.roundType 
+                                ? ROUND_DISPLAY_INFO[interview.roundType as RoundType]?.title || 'Interview'
+                                : 'Mock Interview'
+                              }
+                            </h4>
+                            <div className="flex items-center gap-3 text-sm text-slate-500">
                               <span className="flex items-center gap-1">
-                                <Clock size={14} />
-                                {duration} min
+                                <Calendar size={14} />
+                                {formatDate(interview.startedAt)}
                               </span>
-                            )}
+                              {duration && (
+                                <span className="flex items-center gap-1">
+                                  <Clock size={14} />
+                                  {duration} min
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => handleDeleteInterview(interview.id)}
-                          disabled={deletingInterview === interview.id}
-                          className="text-red-400 hover:text-red-500 p-2 rounded-full transition-all hover:bg-red-50 opacity-0 group-hover:opacity-100"
-                          title="Delete Interview"
-                        >
-                          {deletingInterview === interview.id ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
-                        {score !== null && (
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => handleDeleteInterview(interview.id)}
+                            disabled={deletingInterview === interview.id}
+                            className="text-red-400 hover:text-red-500 p-2 rounded-full transition-all hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                            title="Delete Interview"
+                          >
+                            {deletingInterview === interview.id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </button>
+                          {score !== null && (
+                            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
                               score >= 80 ? 'bg-green-100 text-green-600' :
                               score >= 60 ? 'bg-yellow-100 text-yellow-600' :
                               'bg-red-100 text-red-600'
                             }`}>
-                              <span className="text-xl font-bold">{score.toFixed(0)}</span>
+                              <span className="text-lg font-bold">{score.toFixed(0)}</span>
                             </div>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleViewInterview(interview.id)}
-                          className="bg-indigo-400 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-full font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-                        >
-                          <Eye size={16} />
-                          Details
-                        </button>
+                          )}
+                          <button
+                            onClick={() => handleViewInterview(interview.id)}
+                            className="bg-indigo-400 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-full font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                          >
+                            <Eye size={16} />
+                            Details
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Pagination */}
-            {filteredInterviews.length > ITEMS_PER_PAGE && (
-              <div className="flex items-center justify-center gap-2 mt-6">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                
-                {Array.from({ length: Math.ceil(filteredInterviews.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg font-medium transition-all ${
-                      currentPage === page
-                        ? 'bg-indigo-400 text-white shadow-md'
-                        : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredInterviews.length / ITEMS_PER_PAGE), p + 1))}
-                  disabled={currentPage === Math.ceil(filteredInterviews.length / ITEMS_PER_PAGE)}
-                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronRight size={18} />
-                </button>
+                    </motion.div>
+                  );
+                })}
               </div>
-            )}
-          </section>
+
+              {/* Pagination */}
+              {interviews.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  
+                  {Array.from({ length: Math.ceil(interviews.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-all ${
+                        currentPage === page
+                          ? 'bg-indigo-400 text-white shadow-md'
+                          : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(interviews.length / ITEMS_PER_PAGE), p + 1))}
+                    disabled={currentPage === Math.ceil(interviews.length / ITEMS_PER_PAGE)}
+                    className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
         </>
       )}
     </motion.div>

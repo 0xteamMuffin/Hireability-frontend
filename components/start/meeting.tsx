@@ -104,9 +104,11 @@ const Meeting: React.FC = () => {
         startInterview,
         stopInterview,
         isCallEnding,
+        interviewId,
     } = useVapi({ 
         user, 
         targetId,
+        sessionId,
         roundType: roundType || undefined,
         getAverageExpressions 
     });
@@ -150,6 +152,7 @@ const Meeting: React.FC = () => {
             await sessionApi.completeRound({
                 sessionId,
                 roundId,
+                interviewId: interviewId || undefined,
             });
             // Navigate back to interviews page to continue session
             router.push('/dashboard/interviews');

@@ -18,20 +18,27 @@ import {
   Plus,
   XCircle,
   ArrowRight,
-  BarChart2,
   Sparkles,
   Lock,
   ChevronDown,
   ChevronUp,
   Trash2,
+  Eye,
+  X,
+  TrendingUp,
+  Award,
+  MessageSquare,
+  Lightbulb,
+  Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { sessionApi } from "@/lib/api";
+import { sessionApi, vapiApi } from "@/lib/api";
 import { 
   InterviewSession, 
   InterviewRound,
+  InterviewWithAnalysis,
+  AnalysisDimension,
   RoundType, 
   InterviewStatus,
   SessionStatus,
@@ -93,10 +100,29 @@ const getStatusColor = (status: SessionStatus) => {
   }
 };
 
+const getScore = (dimension: AnalysisDimension | null | undefined): number | null => {
+  if (!dimension || typeof dimension === 'string') return null;
+  if (typeof dimension === 'object' && 'score' in dimension) {
+    return dimension.score ?? null;
+  }
+  return null;
+};
+
+const getOverallScore = (interview: InterviewWithAnalysis): number | null => {
+  if (!interview.analysis) return null;
+  return getScore(interview.analysis.overall);
+};
+
+const getDimensionData = (dimension: AnalysisDimension | null | undefined): AnalysisDimension | null => {
+  if (!dimension || typeof dimension === 'string') return null;
+  return dimension;
+};
+
 const InterviewsPage = () => {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [interviews, setInterviews] = useState<InterviewWithAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [abandoningSession, setAbandoningSession] = useState<string | null>(null);
@@ -104,6 +130,8 @@ const InterviewsPage = () => {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [startingRound, setStartingRound] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedInterview, setSelectedInterview] = useState<InterviewWithAnalysis | null>(null);
+  const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
   const ITEMS_PER_PAGE = 2;
 
   useEffect(() => {
@@ -114,10 +142,16 @@ const InterviewsPage = () => {
         setLoading(true);
         setError(null);
         
-        const sessionsRes = await sessionApi.getSessions();
+        const [sessionsRes, interviewsRes] = await Promise.all([
+          sessionApi.getSessions(),
+          vapiApi.getInterviews(),
+        ]);
         
         if (sessionsRes.success && sessionsRes.data) {
           setSessions(sessionsRes.data);
+        }
+        if (interviewsRes.success && interviewsRes.data) {
+          setInterviews(interviewsRes.data);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load sessions");
@@ -128,6 +162,41 @@ const InterviewsPage = () => {
 
     fetchData();
   }, [authLoading, user]);
+
+  // Debug: log interviews data
+  useEffect(() => {
+    if (interviews.length > 0) {
+      console.log('[InterviewsPage] Loaded interviews:', interviews.map(i => ({
+        id: i.id,
+        sessionId: i.sessionId,
+        roundType: i.roundType,
+        hasAnalysis: !!i.analysis,
+      })));
+    }
+    if (sessions.length > 0) {
+      console.log('[InterviewsPage] Loaded sessions with rounds:', sessions.map(s => ({
+        sessionId: s.id,
+        rounds: s.rounds.map(r => ({
+          id: r.id,
+          roundType: r.roundType,
+          interviewId: r.interviewId,
+          status: r.status,
+        })),
+      })));
+    }
+  }, [interviews, sessions]);
+
+  // Get interview for a specific round - match by round's interviewId or fallback to sessionId + roundType
+  const getInterviewForRound = (round: InterviewRound): InterviewWithAnalysis | undefined => {
+    // First try to match by interviewId on the round
+    if (round.interviewId) {
+      const byId = interviews.find(i => i.id === round.interviewId);
+      if (byId) return byId;
+    }
+    // Fallback: match by sessionId and roundType
+    const bySessionAndType = interviews.find(i => i.sessionId === round.sessionId && i.roundType === round.roundType);
+    return bySessionAndType;
+  };
 
   // Session counts for stats
   const completedSessions = sessions.filter(s => s.status === SessionStatus.COMPLETED);
@@ -151,6 +220,16 @@ const InterviewsPage = () => {
 
   const handleViewRounds = (sessionId: string) => {
     setExpandedSessionId(expandedSessionId === sessionId ? null : sessionId);
+  };
+
+  const handleViewAnalysis = (interview: InterviewWithAnalysis) => {
+    setSelectedInterview(interview);
+    setShowAnalysisPanel(true);
+  };
+
+  const handleCloseAnalysisPanel = () => {
+    setShowAnalysisPanel(false);
+    setTimeout(() => setSelectedInterview(null), 300);
   };
 
   const handleStartRound = async (session: InterviewSession, round: InterviewRound) => {
@@ -455,25 +534,17 @@ const InterviewsPage = () => {
                       </>
                     )}
                     {isCompleted && (
-                      <>
-                        <button
-                          onClick={() => handleViewRounds(session.id)}
-                          className="text-slate-600 hover:text-slate-800 px-4 py-2.5 rounded-full font-medium transition-all flex items-center gap-2 border border-slate-200 hover:border-slate-300"
-                        >
-                          {expandedSessionId === session.id ? (
-                            <ChevronUp size={16} />
-                          ) : (
-                            <ChevronDown size={16} />
-                          )}
-                          {expandedSessionId === session.id ? 'Hide Rounds' : 'View Rounds'}
-                        </button>
-                        <Link href={`/dashboard/analytics?sessionId=${session.id}`}>
-                          <button className="bg-purple-400 hover:bg-purple-500 text-white px-6 py-2.5 rounded-full font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                            <BarChart2 size={16} />
-                            View Analytics
-                          </button>
-                        </Link>
-                      </>
+                      <button
+                        onClick={() => handleViewRounds(session.id)}
+                        className="text-slate-600 hover:text-slate-800 px-4 py-2.5 rounded-full font-medium transition-all flex items-center gap-2 border border-slate-200 hover:border-slate-300"
+                      >
+                        {expandedSessionId === session.id ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                        {expandedSessionId === session.id ? 'Hide Rounds' : 'View Rounds'}
+                      </button>
                     )}
                     {session.status === SessionStatus.ABANDONED && (
                       <button
@@ -510,6 +581,8 @@ const InterviewsPage = () => {
                             const roundInProgress = round.status === InterviewStatus.IN_PROGRESS;
                             const roundLocked = round.isLocked;
                             const canStartRound = !roundLocked && !roundCompleted && !roundSkipped && isActive;
+                            const interview = getInterviewForRound(round);
+                            const score = interview ? getOverallScore(interview) : null;
 
                             return (
                               <motion.div
@@ -533,7 +606,17 @@ const InterviewsPage = () => {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                  {roundCompleted && (
+                                  {/* Inline Score Badge for Completed Rounds */}
+                                  {roundCompleted && score !== null && (
+                                    <div className={`px-3 py-1.5 rounded-lg font-bold text-sm ${
+                                      score >= 80 ? 'bg-green-100 text-green-700' :
+                                      score >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>
+                                      {score.toFixed(0)}%
+                                    </div>
+                                  )}
+                                  {roundCompleted && score === null && (
                                     <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-600 text-xs font-medium">
                                       <CheckCircle2 size={14} />
                                       Completed
@@ -554,6 +637,26 @@ const InterviewsPage = () => {
                                       <Lock size={12} />
                                       Locked
                                     </span>
+                                  )}
+                                  {/* Details Button for Completed Rounds with Analysis */}
+                                  {roundCompleted && interview?.analysis && (
+                                    <button
+                                      onClick={() => handleViewAnalysis(interview)}
+                                      className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium text-sm transition-all"
+                                    >
+                                      <Eye size={14} />
+                                      Details
+                                    </button>
+                                  )}
+                                  {/* View Button for Completed Rounds without Analysis (navigate to analytics page) */}
+                                  {roundCompleted && interview && !interview.analysis && (
+                                    <button
+                                      onClick={() => router.push(`/dashboard/analytics/${interview.id}`)}
+                                      className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium text-sm transition-all"
+                                    >
+                                      <Eye size={14} />
+                                      View
+                                    </button>
                                   )}
                                   {canStartRound && (
                                     <button
@@ -618,6 +721,186 @@ const InterviewsPage = () => {
           )}
         </section>
       )}
+
+      {/* Analysis Slide-out Panel */}
+      <AnimatePresence>
+        {showAnalysisPanel && selectedInterview && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseAnalysisPanel}
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+            />
+            
+            {/* Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 overflow-y-auto"
+            >
+              {/* Panel Header */}
+              <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl text-white ${
+                    selectedInterview.roundType ? ROUND_COLORS[selectedInterview.roundType as RoundType]?.iconBg : 'bg-indigo-400'
+                  }`}>
+                    {selectedInterview.roundType ? ROUND_ICONS_LARGE[selectedInterview.roundType as RoundType] : <Target size={20} />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">
+                      {selectedInterview.roundType ? ROUND_DISPLAY_INFO[selectedInterview.roundType as RoundType]?.title : 'Interview'} Analysis
+                    </h3>
+                    <p className="text-sm text-slate-500">{formatDate(selectedInterview.startedAt)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      handleCloseAnalysisPanel();
+                      router.push(`/dashboard/analytics/${selectedInterview.id}`);
+                    }}
+                    className="px-3 py-1.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium text-sm transition-all flex items-center gap-1.5"
+                  >
+                    <Eye size={14} />
+                    Full Report
+                  </button>
+                  <button
+                    onClick={handleCloseAnalysisPanel}
+                    className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Panel Content */}
+              <div className="p-6 space-y-6">
+                {/* Overall Score - Clickable to Full Report */}
+                {selectedInterview.analysis?.overall && (
+                  <button
+                    onClick={() => {
+                      handleCloseAnalysisPanel();
+                      router.push(`/dashboard/analytics/${selectedInterview.id}`);
+                    }}
+                    className="w-full bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 rounded-2xl p-6 text-center transition-all group"
+                  >
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                      (getScore(selectedInterview.analysis.overall) ?? 0) >= 80 ? 'bg-green-100 text-green-600' :
+                      (getScore(selectedInterview.analysis.overall) ?? 0) >= 60 ? 'bg-yellow-100 text-yellow-600' :
+                      'bg-red-100 text-red-600'
+                    }`}>
+                      <span className="text-3xl font-bold">
+                        {getScore(selectedInterview.analysis.overall)?.toFixed(0) ?? 'N/A'}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-800 text-lg mb-1">Overall Score</h4>
+                    {getDimensionData(selectedInterview.analysis.overall)?.summary && (
+                      <p className="text-slate-600 text-sm">{getDimensionData(selectedInterview.analysis.overall)?.summary}</p>
+                    )}
+                    <span className="inline-flex items-center gap-1 text-indigo-500 text-sm mt-3 group-hover:gap-2 transition-all">
+                      View detailed analysis <ChevronRight size={14} />
+                    </span>
+                  </button>
+                )}
+
+                {/* Dimension Scores */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <TrendingUp size={18} className="text-indigo-400" />
+                    Performance Breakdown
+                  </h4>
+                  
+                  {[
+                    { key: 'technical', label: 'Technical Skills', icon: <Cpu size={16} /> },
+                    { key: 'communication', label: 'Communication', icon: <MessageSquare size={16} /> },
+                    { key: 'problemSolving', label: 'Problem Solving', icon: <Lightbulb size={16} /> },
+                    { key: 'roleKnowledge', label: 'Role Knowledge', icon: <Target size={16} /> },
+                    { key: 'professional', label: 'Professionalism', icon: <Award size={16} /> },
+                  ].map(({ key, label, icon }) => {
+                    const dimension = getDimensionData(selectedInterview.analysis?.[key as keyof typeof selectedInterview.analysis] as AnalysisDimension);
+                    const score = dimension?.score;
+                    if (score === null || score === undefined) return null;
+                    
+                    return (
+                      <div key={key} className="bg-slate-50 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 text-slate-700">
+                            <span className="text-slate-400">{icon}</span>
+                            <span className="font-medium">{label}</span>
+                          </div>
+                          <span className={`font-bold ${
+                            score >= 80 ? 'text-green-600' :
+                            score >= 60 ? 'text-yellow-600' :
+                            'text-red-600'
+                          }`}>
+                            {score.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              score >= 80 ? 'bg-green-400' :
+                              score >= 60 ? 'bg-yellow-400' :
+                              'bg-red-400'
+                            }`}
+                            style={{ width: `${score}%` }}
+                          />
+                        </div>
+                        {dimension?.notes && (
+                          <p className="text-sm text-slate-500 mt-2">{dimension.notes}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Strengths */}
+                {getDimensionData(selectedInterview.analysis?.overall)?.strengths && 
+                 getDimensionData(selectedInterview.analysis?.overall)!.strengths!.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-green-500" />
+                      Key Strengths
+                    </h4>
+                    <div className="space-y-2">
+                      {getDimensionData(selectedInterview.analysis?.overall)!.strengths!.map((strength, idx) => (
+                        <div key={idx} className="flex items-start gap-2 bg-green-50 rounded-lg p-3 text-green-700 text-sm">
+                          <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
+                          {strength}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Areas for Improvement */}
+                {getDimensionData(selectedInterview.analysis?.overall)?.improvements && 
+                 getDimensionData(selectedInterview.analysis?.overall)!.improvements!.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                      <Lightbulb size={18} className="text-amber-500" />
+                      Areas to Improve
+                    </h4>
+                    <div className="space-y-2">
+                      {getDimensionData(selectedInterview.analysis?.overall)!.improvements!.map((improvement, idx) => (
+                        <div key={idx} className="flex items-start gap-2 bg-amber-50 rounded-lg p-3 text-amber-700 text-sm">
+                          <ArrowRight size={14} className="mt-0.5 flex-shrink-0" />
+                          {improvement}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
