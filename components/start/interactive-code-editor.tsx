@@ -1,3 +1,8 @@
+/**
+ * Interactive Code Editor - Revamped
+ * Real-time code editing with WebSocket sync and live execution results
+ */
+
 "use client"
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
@@ -13,10 +18,14 @@ import {
   Check,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Terminal,
+  Clock,
+  Zap,
 } from 'lucide-react';
+import { useInterviewStore, selectIsCodingPhase } from '@/lib/stores/interview-store';
+import { Difficulty } from '@/lib/types/interview-state';
 import { codingApi } from '@/lib/api';
-import { CodingProblem, CodeEvaluationResult, Difficulty } from '@/lib/types';
 
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -25,80 +34,105 @@ const LANGUAGES = [
   { value: 'java', label: 'Java' },
   { value: 'cpp', label: 'C++' },
   { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
 ];
 
 interface InteractiveCodeEditorProps {
   roundId?: string;
-  problem?: CodingProblem;
+  interviewId?: string;
   onCodeChange?: (code: string, language: string) => void;
-  onSubmit?: (result: CodeEvaluationResult) => void;
   isInterviewActive?: boolean;
 }
 
 const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   roundId,
-  problem: initialProblem,
+  interviewId,
   onCodeChange,
-  onSubmit,
   isInterviewActive = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [language, setLanguage] = useState('javascript');
-  const [code, setCode] = useState('// Write your code here...');
-  const [problem, setProblem] = useState<CodingProblem | null>(initialProblem || null);
+  // Store state
+  const {
+    codingProblem,
+    codeExecutionResult,
+    currentCode,
+    codeLanguage,
+    isCodeEditorOpen,
+    setCurrentCode,
+    setCodeLanguage,
+    setCodeEditorOpen,
+  } = useInterviewStore();
+  
+  const isCodingPhase = useInterviewStore(selectIsCodingPhase);
+
+  // Local state
   const [showProblem, setShowProblem] = useState(true);
+  const [showOutput, setShowOutput] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [loadingHint, setLoadingHint] = useState(false);
-  const [evaluation, setEvaluation] = useState<CodeEvaluationResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [running, setRunning] = useState(false);
   const [hintsUsed, setHintsUsed] = useState(0);
-  
-  const codeRef = useRef(code);
-  codeRef.current = code;
+  const [localOutput, setLocalOutput] = useState<string | null>(null);
 
-  // Load problem on mount or when roundId changes
+  const codeRef = useRef(currentCode);
+  codeRef.current = currentCode;
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update starter code when problem or language changes
   useEffect(() => {
-    if (initialProblem) {
-      setProblem(initialProblem);
-      if (initialProblem.starterCode?.[language]) {
-        setCode(initialProblem.starterCode[language]);
+    if (codingProblem?.starterCode?.[codeLanguage]) {
+      const starterCode = codingProblem.starterCode[codeLanguage];
+      if (!currentCode || currentCode.includes('// Write your') || currentCode.trim() === '') {
+        setCurrentCode(starterCode);
       }
     }
-  }, [initialProblem, language]);
+  }, [codingProblem, codeLanguage, currentCode, setCurrentCode]);
 
-  // Update starter code when language changes
-  useEffect(() => {
-    if (problem?.starterCode?.[language] && code.includes('// Write your code here')) {
-      setCode(problem.starterCode[language]);
-    }
-  }, [language, problem]);
-
+  // Handle editor changes with debounced sync
   const handleEditorChange = useCallback((value: string | undefined) => {
     const newCode = value || '';
-    setCode(newCode);
-    onCodeChange?.(newCode, language);
-  }, [language, onCodeChange]);
+    setCurrentCode(newCode);
 
+    // Debounce WebSocket sync
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      onCodeChange?.(newCode, codeLanguage);
+    }, 500);
+  }, [codeLanguage, onCodeChange, setCurrentCode]);
+
+  // Handle language change
+  const handleLanguageChange = (lang: string) => {
+    setCodeLanguage(lang);
+    // Update starter code if available
+    if (codingProblem?.starterCode?.[lang]) {
+      setCurrentCode(codingProblem.starterCode[lang]);
+    }
+  };
+
+  // Get hint
   const handleGetHint = async () => {
-    if (!problem || loadingHint) return;
-    
+    if (!codingProblem || loadingHint) return;
+
     // First try built-in hints
-    if (problem.hints && hintsUsed < problem.hints.length) {
-      setHint(problem.hints[hintsUsed]);
+    if (codingProblem.hints && hintsUsed < codingProblem.hints.length) {
+      setHint(codingProblem.hints[hintsUsed]);
       setHintsUsed(prev => prev + 1);
       return;
     }
-    
+
     // Then get AI hint
     setLoadingHint(true);
     try {
       const resp = await codingApi.getHint(
         codeRef.current,
-        language,
-        problem.description
+        codeLanguage,
+        codingProblem.description
       );
       if (resp.success && resp.data) {
         setHint(resp.data.hint);
+        setHintsUsed(prev => prev + 1);
       }
     } catch (err) {
       console.error('Failed to get hint:', err);
@@ -107,22 +141,46 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     }
   };
 
+  // Run code (local execution via backend)
+  const handleRun = async () => {
+    if (running) return;
+    setRunning(true);
+    setShowOutput(true);
+    setLocalOutput(null);
+
+    try {
+      // Use the coding API to run the code
+      const resp = await codingApi.runCode?.({
+        code: codeRef.current,
+        language: codeLanguage,
+      });
+      
+      if (resp?.success && resp.data) {
+        setLocalOutput(resp.data.output || resp.data.error || 'No output');
+      } else {
+        setLocalOutput(resp?.error || 'Execution failed');
+      }
+    } catch (err) {
+      setLocalOutput('Failed to execute code');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  // Submit code for evaluation
   const handleSubmit = async () => {
     if (!roundId || submitting) return;
-    
+
     setSubmitting(true);
-    setEvaluation(null);
-    
     try {
       const resp = await codingApi.submitCode({
         roundId,
         code: codeRef.current,
-        language,
+        language: codeLanguage,
       });
-      
+
       if (resp.success && resp.data) {
-        setEvaluation(resp.data);
-        onSubmit?.(resp.data);
+        setShowOutput(true);
       }
     } catch (err) {
       console.error('Submit failed:', err);
@@ -131,27 +189,42 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     }
   };
 
+  // Reset code
   const handleReset = () => {
-    if (problem?.starterCode?.[language]) {
-      setCode(problem.starterCode[language]);
+    if (codingProblem?.starterCode?.[codeLanguage]) {
+      setCurrentCode(codingProblem.starterCode[codeLanguage]);
     } else {
-      setCode('// Write your code here...');
+      setCurrentCode('// Write your solution here\n');
     }
-    setEvaluation(null);
     setHint(null);
+    setLocalOutput(null);
   };
 
-  // Auto-open when interview is active and we have a coding round
+  // Auto-open for coding phase
   useEffect(() => {
-    if (isInterviewActive && problem) {
-      setIsOpen(true);
+    if (isCodingPhase && codingProblem && !isCodeEditorOpen) {
+      setCodeEditorOpen(true);
     }
-  }, [isInterviewActive, problem]);
+  }, [isCodingPhase, codingProblem, isCodeEditorOpen, setCodeEditorOpen]);
+
+  // Get difficulty color
+  const getDifficultyColor = (difficulty: Difficulty) => {
+    switch (difficulty) {
+      case Difficulty.EASY:
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case Difficulty.MEDIUM:
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case Difficulty.HARD:
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
 
   return (
     <div 
       className={`fixed top-0 left-0 h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-50 flex ${
-        isOpen ? 'w-[55%]' : 'w-0'
+        isCodeEditorOpen ? 'w-[55%]' : 'w-0'
       }`}
     >
       <div className="relative h-full flex-1 bg-[#1e1e1e] border-r border-white/10 flex flex-col shadow-2xl overflow-hidden">
@@ -162,14 +235,19 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
               <Code size={18} className="text-indigo-400" />
             </div>
             <h3 className="text-sm font-semibold text-zinc-200 tracking-wide uppercase">
-              {problem ? 'Coding Challenge' : 'Code Editor'}
+              {codingProblem ? 'Coding Challenge' : 'Code Editor'}
             </h3>
+            {isCodingPhase && (
+              <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">
+                Live Coding
+              </span>
+            )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              value={codeLanguage}
+              onChange={(e) => handleLanguageChange(e.target.value)}
               className="bg-[#2d2d2d] text-zinc-300 text-xs px-3 py-1.5 rounded border border-white/5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
             >
               {LANGUAGES.map((lang) => (
@@ -182,28 +260,62 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
         </div>
 
         {/* Problem Description (Collapsible) */}
-        {problem && (
-          <div className={`border-b border-white/10 bg-[#1a1a1a] transition-all duration-300 ${showProblem ? 'max-h-64' : 'max-h-10'} overflow-hidden`}>
+        {codingProblem && (
+          <div className={`border-b border-white/10 bg-[#1a1a1a] transition-all duration-300 ${
+            showProblem ? 'max-h-72' : 'max-h-10'
+          } overflow-hidden`}>
             <button
               onClick={() => setShowProblem(!showProblem)}
               className="w-full px-4 py-2 flex items-center justify-between text-sm text-zinc-300 hover:bg-white/5"
             >
-              <span className="font-medium">{problem.title}</span>
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded text-xs ${
-                  problem.difficulty === Difficulty.EASY ? 'bg-green-500/20 text-green-400' :
-                  problem.difficulty === Difficulty.MEDIUM ? 'bg-yellow-500/20 text-yellow-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {problem.difficulty}
+              <span className="font-medium truncate">{codingProblem.title}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`px-2 py-0.5 rounded text-xs border ${getDifficultyColor(codingProblem.difficulty)}`}>
+                  {codingProblem.difficulty}
                 </span>
                 {showProblem ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
             </button>
-            
+
             {showProblem && (
-              <div className="px-4 pb-4 max-h-48 overflow-y-auto">
-                <p className="text-sm text-zinc-400 whitespace-pre-wrap">{problem.description}</p>
+              <div className="px-4 pb-4 max-h-56 overflow-y-auto">
+                <p className="text-sm text-zinc-400 whitespace-pre-wrap mb-3">
+                  {codingProblem.description}
+                </p>
+
+                {/* Examples */}
+                {codingProblem.examples && codingProblem.examples.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-500 font-medium">Examples:</p>
+                    {codingProblem.examples.map((ex, i) => (
+                      <div key={i} className="bg-[#252526] rounded p-2 text-xs font-mono">
+                        <p className="text-zinc-400">
+                          <span className="text-zinc-500">Input:</span> {ex.input}
+                        </p>
+                        <p className="text-zinc-400">
+                          <span className="text-zinc-500">Output:</span> {ex.output}
+                        </p>
+                        {ex.explanation && (
+                          <p className="text-zinc-500 mt-1">{ex.explanation}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Constraints */}
+                {codingProblem.constraints && codingProblem.constraints.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs text-zinc-500 font-medium mb-1">Constraints:</p>
+                    <ul className="text-xs text-zinc-400 space-y-0.5">
+                      {codingProblem.constraints.map((c, i) => (
+                        <li key={i} className="pl-2 relative before:absolute before:left-0 before:top-1.5 before:w-1 before:h-1 before:bg-zinc-600 before:rounded-full">
+                          {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -215,6 +327,12 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
             <div className="flex items-start gap-2">
               <Lightbulb size={16} className="text-amber-400 mt-0.5 shrink-0" />
               <p className="text-sm text-amber-200">{hint}</p>
+              <button
+                onClick={() => setHint(null)}
+                className="text-amber-400 hover:text-amber-200 shrink-0"
+              >
+                <X size={14} />
+              </button>
             </div>
           </div>
         )}
@@ -223,8 +341,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
         <div className="flex-1 min-h-0">
           <Editor
             height="100%"
-            language={language}
-            value={code}
+            language={codeLanguage}
+            value={currentCode}
             theme="vs-dark"
             onChange={handleEditorChange}
             options={{
@@ -246,23 +364,100 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
           />
         </div>
 
-        {/* Evaluation Results */}
-        {evaluation && (
-          <div className={`px-4 py-3 border-t border-white/10 ${evaluation.passed ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {evaluation.passed ? (
-                  <Check size={18} className="text-green-400" />
-                ) : (
-                  <X size={18} className="text-red-400" />
-                )}
-                <span className={`font-medium ${evaluation.passed ? 'text-green-400' : 'text-red-400'}`}>
-                  {evaluation.passed ? 'All Tests Passed!' : 'Some Tests Failed'}
-                </span>
+        {/* Output Panel (Collapsible) */}
+        {showOutput && (
+          <div className="border-t border-white/10 bg-[#1a1a1a] max-h-48 overflow-hidden flex flex-col">
+            <div className="px-4 py-2 flex items-center justify-between border-b border-white/5">
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <Terminal size={14} />
+                <span>Output</span>
               </div>
-              <span className="text-sm text-zinc-400">Score: {evaluation.score}/100</span>
+              <button
+                onClick={() => setShowOutput(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <p className="text-xs text-zinc-400">{evaluation.feedback}</p>
+            
+            <div className="flex-1 overflow-y-auto p-3">
+              {/* Execution result from socket */}
+              {codeExecutionResult && (
+                <div className={`mb-2 p-2 rounded ${
+                  codeExecutionResult.success 
+                    ? 'bg-green-500/10 border border-green-500/20' 
+                    : 'bg-red-500/10 border border-red-500/20'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {codeExecutionResult.success ? (
+                      <Check size={14} className="text-green-400" />
+                    ) : (
+                      <X size={14} className="text-red-400" />
+                    )}
+                    <span className={`text-xs font-medium ${
+                      codeExecutionResult.success ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {codeExecutionResult.success ? 'Success' : 'Error'}
+                    </span>
+                    {codeExecutionResult.executionTimeMs && (
+                      <span className="text-xs text-zinc-500 flex items-center gap-1">
+                        <Clock size={10} />
+                        {codeExecutionResult.executionTimeMs}ms
+                      </span>
+                    )}
+                  </div>
+                  
+                  {codeExecutionResult.output && (
+                    <pre className="text-xs text-zinc-300 font-mono whitespace-pre-wrap">
+                      {codeExecutionResult.output}
+                    </pre>
+                  )}
+                  
+                  {codeExecutionResult.error && (
+                    <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap">
+                      {codeExecutionResult.error}
+                    </pre>
+                  )}
+
+                  {/* Test results */}
+                  {codeExecutionResult.testResults && codeExecutionResult.testResults.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-zinc-400">
+                        Tests: {codeExecutionResult.passedTests}/{codeExecutionResult.totalTests} passed
+                      </p>
+                      {codeExecutionResult.testResults.map((test, i) => (
+                        <div key={i} className={`text-xs p-1.5 rounded ${
+                          test.passed ? 'bg-green-500/5' : 'bg-red-500/5'
+                        }`}>
+                          <span className={test.passed ? 'text-green-400' : 'text-red-400'}>
+                            {test.passed ? '✓' : '✗'}
+                          </span>
+                          <span className="text-zinc-400 ml-2">
+                            Input: {test.input} → Expected: {test.expectedOutput}
+                            {!test.passed && `, Got: ${test.actualOutput}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Local output */}
+              {localOutput && !codeExecutionResult && (
+                <pre className="text-xs text-zinc-300 font-mono whitespace-pre-wrap">
+                  {localOutput}
+                </pre>
+              )}
+
+              {/* Loading state */}
+              {running && (
+                <div className="flex items-center gap-2 text-zinc-400">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span className="text-xs">Running...</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -276,8 +471,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
               <Trash2 size={14} />
               Reset
             </button>
-            
-            {problem && (
+
+            {codingProblem && (
               <button
                 onClick={handleGetHint}
                 disabled={loadingHint}
@@ -288,36 +483,54 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
                 ) : (
                   <Lightbulb size={14} />
                 )}
-                Hint {problem.hints && hintsUsed < problem.hints.length ? `(${problem.hints.length - hintsUsed} left)` : ''}
+                Hint
+                {codingProblem.hints && hintsUsed < codingProblem.hints.length && (
+                  <span className="text-zinc-500">({codingProblem.hints.length - hintsUsed})</span>
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={handleRun}
+              disabled={running}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-green-400 transition-colors disabled:opacity-50"
+            >
+              {running ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Play size={14} />
+              )}
+              Run
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {roundId && (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {submitting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+                Submit
               </button>
             )}
           </div>
-          
-          {roundId && (
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
-            >
-              {submitting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Send size={14} />
-              )}
-              Submit Code
-            </button>
-          )}
         </div>
       </div>
 
       {/* Toggle Button */}
       <div className="relative h-full flex items-center">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setCodeEditorOpen(!isCodeEditorOpen)}
           className="absolute -left-px flex items-center justify-center w-7 h-14 bg-[#252526] border border-white/10 border-l-0 rounded-r-lg text-zinc-400 hover:text-white hover:bg-[#2d2d2d] transition-all duration-200 shadow-lg group"
-          aria-label={isOpen ? 'Close code editor' : 'Open code editor'}
+          aria-label={isCodeEditorOpen ? 'Close code editor' : 'Open code editor'}
         >
-          {isOpen ? (
+          {isCodeEditorOpen ? (
             <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
           ) : (
             <div className="flex flex-col items-center gap-1">

@@ -11,6 +11,19 @@ import {
   Difficulty,
 } from '../types';
 
+interface RunCodePayload {
+  code: string;
+  language: string;
+  stdin?: string;
+}
+
+interface RunCodeResult {
+  success: boolean;
+  output?: string;
+  error?: string;
+  executionTimeMs?: number;
+}
+
 export const codingApi = {
   /**
    * Get all coding problems
@@ -68,6 +81,13 @@ export const codingApi = {
    */
   submitCode: async (payload: SubmitCodePayload): Promise<ApiResponse<CodeEvaluationResult>> => {
     return apiClient.post('/api/coding/submit', payload);
+  },
+
+  /**
+   * Run code without evaluation (just execution)
+   */
+  runCode: async (payload: RunCodePayload): Promise<ApiResponse<RunCodeResult>> => {
+    return apiClient.post('/api/coding/run', payload);
   },
 
   /**

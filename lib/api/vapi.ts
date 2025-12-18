@@ -9,8 +9,12 @@ import {
 } from '../types';
 
 export const vapiApi = {
-  getContext: (targetId?: string): Promise<ApiResponse<VapiContext>> => {
-    const url = targetId ? `/api/vapi/context?targetId=${targetId}` : '/api/vapi/context';
+  getContext: (targetId?: string, roundType?: string): Promise<ApiResponse<VapiContext>> => {
+    const params = new URLSearchParams();
+    if (targetId) params.append('targetId', targetId);
+    if (roundType) params.append('roundType', roundType);
+    const queryString = params.toString();
+    const url = queryString ? `/api/vapi/context?${queryString}` : '/api/vapi/context';
     return apiClient.get<VapiContext>(url);
   },
   saveTranscript: (payload: SaveTranscriptPayload): Promise<ApiResponse<unknown>> => {
@@ -46,5 +50,16 @@ export const vapiApi = {
   }): Promise<ApiResponse<unknown>> => {
     console.log(payload)
     return apiClient.post('/api/vapi/calls', payload);
+  },
+
+  // Initialize interview state for real-time sync
+  initializeInterviewState: (payload: {
+    userId: string;
+    interviewId: string;
+    sessionId?: string;
+    roundType: string;
+    targetId?: string;
+  }): Promise<ApiResponse<unknown>> => {
+    return apiClient.post('/api/vapi/interactive/initializeInterview', payload);
   },
 };

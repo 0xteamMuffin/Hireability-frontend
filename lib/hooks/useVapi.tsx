@@ -1,8 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+"use client"
+/**
+ * Enhanced VAPI Hook with real-time state sync
+ * Handles VAPI voice calls with WebSocket integration for live interview state
+ */
+
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Vapi from '@vapi-ai/web';
 import { vapiApi } from '@/lib/api';
 import { VapiContext } from '@/lib/types';
-import { ConversationEntry } from '@/components/start/transcriber';
+import { useInterviewStore } from '@/lib/stores/interview-store';
+import { useSocket } from './useSocket';
+import { TranscriptEntry } from '@/lib/types/interview-state';
 
 interface User {
     id: string;
@@ -16,7 +24,15 @@ interface UseVapiProps {
     getAverageExpressions?: () => Record<string, number>;
 }
 
+export interface ConversationEntry {
+    role: 'user' | 'assistant';
+    text: string;
+    timestamp: string;
+    isFinal?: boolean;
+}
+
 export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpressions }: UseVapiProps) => {
+    // VAPI state
     const [vapiClient, setVapiClient] = useState<Vapi | null>(null);
     const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'in-call'>('idle');
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -29,6 +45,8 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
     const [callId, setCallId] = useState<string | null>(null);
     const [interviewId, setInterviewId] = useState<string | null>(null);
     const [isCallEnding, setIsCallEnding] = useState(false);
+
+    // Refs for accessing latest values in callbacks
     const interviewIdRef = useRef<string | null>(null);
     const callIdRef = useRef<string | null>(null);
     const conversationRef = useRef<ConversationEntry[]>([]);
@@ -37,29 +55,34 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
     const activeAssistantIdRef = useRef<string | null>(null);
     const callEndResolveRef = useRef<(() => void) | null>(null);
 
+    // Interview store for real-time state
+    const {
+        addToTranscript,
+        reset: resetInterviewStore,
+        isConnected: socketConnected,
+    } = useInterviewStore();
+
+    // Socket connection for real-time updates
+    // Connect as soon as we have an interviewId (not just when in-call)
+    const { emitExpressionUpdate } = useSocket({
+        interviewId,
+        userId: user?.id || null,
+        enabled: !!interviewId,
+    });
+
     const timeFormatter = useMemo(
         () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
         []
     );
 
-    // Keep refs in sync with state/props
-    useEffect(() => {
-        userRef.current = user;
-    }, [user]);
+    // Keep refs in sync
+    useEffect(() => { userRef.current = user; }, [user]);
+    useEffect(() => { conversationRef.current = conversation; }, [conversation]);
+    useEffect(() => { callStartedAtRef.current = callStartedAt; }, [callStartedAt]);
+    useEffect(() => { activeAssistantIdRef.current = activeAssistantId; }, [activeAssistantId]);
 
-    useEffect(() => {
-        conversationRef.current = conversation;
-    }, [conversation]);
-
-    useEffect(() => {
-        callStartedAtRef.current = callStartedAt;
-    }, [callStartedAt]);
-
-    useEffect(() => {
-        activeAssistantIdRef.current = activeAssistantId;
-    }, [activeAssistantId]);
-
-    const persistTranscript = async (endedAt: Date) => {
+    // Persist transcript to backend
+    const persistTranscript = useCallback(async (endedAt: Date) => {
         const iid = interviewIdRef.current;
         const currentUser = userRef.current;
         const startedAt = callStartedAtRef.current;
@@ -72,16 +95,15 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
             transcriptLines: conversationRef.current.length,
         });
 
-        if (!currentUser) return;
-        if (!conversationRef.current.length) return;
-        if (!iid) return;
+        if (!currentUser || !conversationRef.current.length || !iid) return;
 
-        const durationSeconds =
-            startedAt != null ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;
+        const durationSeconds = startedAt
+            ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
+            : null;
 
         const resp = await vapiApi.saveTranscript({
             interviewId: iid,
-            assistantId: assistantId,
+            assistantId,
             callId: cid,
             startedAt: startedAt?.toISOString() || null,
             endedAt: endedAt.toISOString(),
@@ -90,62 +112,49 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
         });
 
         console.log('[persistTranscript] response', resp);
-    };
+    }, []);
 
-    // Initialize Vapi client
+    // Initialize VAPI client
     useEffect(() => {
         const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
         if (!apiKey) {
-            setVapiError('Missing NEXT_PUBLIC_VAPI_PUBLIC_KEY environment variable');
+            setVapiError('Missing NEXT_PUBLIC_VAPI_PUBLIC_KEY');
             return;
         }
 
         const client = new Vapi(apiKey);
         setVapiClient(client);
-
         const clientAny = client as any;
 
+        // Call started
         clientAny.on('call-start', (payload: any) => {
-            console.log('[call-start] ======= EVENT FIRED =======');
-            console.log('[call-start] Full payload:', JSON.stringify(payload, null, 2));
-
+            console.log('[call-start] Event fired:', payload);
             setCallStatus('in-call');
             setVapiError(null);
             setConversation([]);
+
             const startTime = new Date();
             setCallStartedAt(startTime);
             callStartedAtRef.current = startTime;
 
-            const eventCallId =
-                payload?.id ||
-                payload?.callId ||
-                payload?.call?.id ||
-                payload?.data?.id ||
-                payload?.data?.callId ||
-                null;
-
-            console.log('[call-start] Extracted callId from event:', eventCallId);
+            // Extract call ID from various payload locations
+            const eventCallId = payload?.id || payload?.callId || payload?.call?.id ||
+                payload?.data?.id || payload?.data?.callId || null;
 
             if (eventCallId && !callIdRef.current) {
-                console.log('[call-start] ✅ Setting callId from event');
                 setCallId(eventCallId);
                 callIdRef.current = eventCallId;
-            } else if (!eventCallId && !callIdRef.current) {
-                console.warn('[call-start] ⚠️ No callId available from either source!');
-            } else {
-                console.log('[call-start] Using existing callId:', callIdRef.current);
             }
-
-            console.log('[call-start] ======= END EVENT =======');
         });
 
+        // Call ended
         clientAny.on('call-end', async () => {
-            console.log('[call-end] fired', { interviewId: interviewIdRef.current, callId: callIdRef.current });
+            console.log('[call-end] Event fired');
             setIsCallEnding(true);
             setCallStatus('idle');
             setIsSpeaking(false);
-            const endedAt = new Date();
 
+            const endedAt = new Date();
             const currentInterviewId = interviewIdRef.current;
             const currentCallId = callIdRef.current;
 
@@ -159,7 +168,7 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
                 setCallId(null);
                 callIdRef.current = null;
                 setIsCallEnding(false);
-                // Resolve the promise so stopInterview knows we're done
+
                 if (callEndResolveRef.current) {
                     callEndResolveRef.current();
                     callEndResolveRef.current = null;
@@ -167,75 +176,74 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
             };
 
             if (!currentInterviewId) {
-                console.warn('[call-end] missing interviewId, skipping persist');
                 cleanup();
                 return;
             }
 
-            // Get average expressions from parent
-            let averageExpressions: Record<string, number> | undefined = undefined;
+            // Get expressions
+            let averageExpressions: Record<string, number> | undefined;
             if (getAverageExpressions) {
                 try {
                     averageExpressions = getAverageExpressions();
-                    console.log('[call-end] Average expressions:', averageExpressions);
                 } catch (err) {
-                    console.error('[call-end] error getting expressions:', err);
+                    console.error('[call-end] Error getting expressions:', err);
                 }
             }
 
             try {
-                // Save transcript first
                 await persistTranscript(endedAt);
 
-                // Persist call metadata - await this one as it's essential
                 if (currentCallId) {
-                    try {
-                        await vapiApi.saveCallMetadata({
-                            interviewId: currentInterviewId,
-                            callId: currentCallId,
-                            averageExpressions: averageExpressions,
-                        });
-                        console.log('[call-end] saveCallMetadata success - backend will auto-analyze');
-                    } catch (err) {
-                        console.error('[call-end] saveCallMetadata error:', err);
-                    }
+                    await vapiApi.saveCallMetadata({
+                        interviewId: currentInterviewId,
+                        callId: currentCallId,
+                        averageExpressions,
+                    });
                 }
-
-                console.log('[call-end] essential operations completed');
             } catch (err) {
-                console.error('Failed to save transcript', err);
+                console.error('[call-end] Error:', err);
                 setVapiError('Failed to save transcript');
             } finally {
                 cleanup();
             }
         });
 
+        // Speech events
         client.on('speech-start', () => setIsSpeaking(true));
         client.on('speech-end', () => setIsSpeaking(false));
 
+        // Transcript messages
         client.on('message', (message: any) => {
             if (message.type === 'transcript' && message.transcriptType === 'final') {
-                setConversation((prev) => [
-                    ...prev,
-                    {
-                        role: message.role || 'assistant',
-                        text: message.transcript,
-                        timestamp: timeFormatter.format(new Date()),
-                        isFinal: true,
-                    },
-                ]);
+                const entry: ConversationEntry = {
+                    role: message.role || 'assistant',
+                    text: message.transcript,
+                    timestamp: timeFormatter.format(new Date()),
+                    isFinal: true,
+                };
+
+                setConversation((prev) => [...prev, entry]);
+
+                // Also add to interview store transcript
+                addToTranscript({
+                    role: message.role === 'user' ? 'user' : 'assistant',
+                    content: message.transcript,
+                    timestamp: new Date().toISOString(),
+                    type: 'general',
+                });
             }
         });
 
+        // Error handling
         client.on('error', (error: any) => {
-            setVapiError(error?.message || 'Vapi error');
+            setVapiError(error?.message || 'VAPI error');
             setCallStatus('idle');
         });
 
         return () => {
             client.stop();
         };
-    }, [getAverageExpressions, timeFormatter]);
+    }, [getAverageExpressions, timeFormatter, addToTranscript, persistTranscript]);
 
     // Load context
     useEffect(() => {
@@ -243,65 +251,101 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
 
         const loadContext = async () => {
             setContextStatus('loading');
-            const response = await vapiApi.getContext(targetId || undefined);
+            const response = await vapiApi.getContext(targetId || undefined, roundType || undefined);
             if (response.success && response.data) {
                 setContext(response.data);
                 setContextStatus('idle');
             } else {
                 setContextStatus('error');
-                setVapiError(response.error || 'Failed to load interview context');
+                setVapiError(response.error || 'Failed to load context');
             }
         };
 
         loadContext();
-    }, [user, targetId]);
+    }, [user, targetId, roundType]);
 
-    const startInterview = async () => {
+    // Start interview
+    const startInterview = useCallback(async () => {
         if (!user) {
             setVapiError('Please sign in to start the interview.');
             return;
         }
 
         if (!vapiClient) {
-            setVapiError('Voice client is not ready yet.');
+            setVapiError('Voice client not ready.');
             return;
         }
 
         const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
         if (!assistantId) {
-            setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID environment variable');
+            setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID');
             return;
         }
+
         setActiveAssistantId(assistantId);
         activeAssistantIdRef.current = assistantId;
-
         setCallStatus('connecting');
 
+        // Reset interview store for fresh start
+        resetInterviewStore();
+
         try {
+            // Create interview session on backend
             const interviewResp = await vapiApi.startInterview({
                 assistantId,
                 contextPrompt: context?.systemPrompt || null,
                 sessionId: sessionId || undefined,
                 roundType: roundType || undefined,
             });
+
             if (!interviewResp.success || !interviewResp.data) {
                 setCallStatus('idle');
-                setVapiError(interviewResp.error || 'Failed to start interview session');
+                setVapiError(interviewResp.error || 'Failed to start interview');
                 return;
             }
-            console.log('[startInterview] resp', interviewResp);
+
             setInterviewId(interviewResp.data.id);
             interviewIdRef.current = interviewResp.data.id;
+
             const startTime = new Date(interviewResp.data.startedAt);
             setCallStartedAt(startTime);
             callStartedAtRef.current = startTime;
 
-            // START THE CALL AND GET THE CALL OBJECT
-            console.log('[startInterview] Starting Vapi call...');
+            // Initialize interview state for real-time sync
+            // Add a small delay to allow socket to connect first
+            const newInterviewId = interviewResp.data.id;
+            setTimeout(async () => {
+                try {
+                    const stateResp = await vapiApi.initializeInterviewState({
+                        userId: user.id,
+                        interviewId: newInterviewId,
+                        sessionId: sessionId || undefined,
+                        roundType: roundType || 'BEHAVIORAL',
+                        targetId: targetId || undefined,
+                    });
+                    console.log('[startInterview] Interview state initialized:', stateResp);
+                } catch (stateErr) {
+                    console.warn('[startInterview] Failed to initialize state:', stateErr);
+                }
+            }, 500); // Give socket time to connect and join room
+
+            // Start VAPI call with enhanced variable values for tools
             const vapiCall = await vapiClient.start(assistantId, {
                 model: {
-                    provider: 'openai',
-                    model: 'gpt-4o',
+                    provider: 'google',
+                    model: 'gemini-2.5-flash-lite',
+                    toolIds: [
+                        "caa8e1cd-b9c7-473c-a69e-f445846f202d",
+                        "e022edd5-34b3-4671-af55-464cd947fbe4",
+                        "7ec95d93-6330-4329-8069-be07c566611b",
+                        "1e1f0237-f421-4b0b-b03a-dd046f10c335",
+                        "f709f0d0-4f0a-4cc2-878c-963d5176647a",
+                        "01665899-7776-46c0-ac9b-a3b33c26cc48",
+                        "7364a03c-a7a9-477e-a9a0-eebf40f78095",
+                        "c71cf8bc-9777-4137-a6fc-22b3c26ffdaa",
+                        "52f1d743-8a30-4ab6-976d-830945d731f9",
+                        "3f389918-4308-4b65-80d2-2502f4f5bcbc"
+                    ],
                     messages: [
                         {
                             role: 'system',
@@ -312,60 +356,37 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
                 firstMessage: context?.firstMessage,
                 variableValues: {
                     userId: user.id,
+                    interviewId: interviewResp.data.id,
+                    roundType: roundType || 'BEHAVIORAL',
+                    targetId: targetId || '',
+                    sessionId: sessionId || '',
                     userContext: context?.systemPrompt || null,
                 },
             } as any);
 
-            console.log('[startInterview] Vapi call started:', vapiCall);
-
-            if (vapiCall && vapiCall.id) {
-                console.log('[startInterview] ✅ Got callId from vapi.start():', vapiCall.id);
+            if (vapiCall?.id) {
                 setCallId(vapiCall.id);
                 callIdRef.current = vapiCall.id;
-            } else if (vapiCall && (vapiCall as any).webCallUrl) {
-                console.warn('[startInterview] This is a web call, checking for ID in different location');
-                const webCallId = extractCallIdFromUrl((vapiCall as any).webCallUrl);
-                if (webCallId) {
-                    console.log('[startInterview] ✅ Extracted callId from webCallUrl:', webCallId);
-                    setCallId(webCallId);
-                    callIdRef.current = webCallId;
-                }
-            } else {
-                console.warn('[startInterview] ⚠️ No callId returned from vapi.start()');
-                console.log('[startInterview] Call object:', JSON.stringify(vapiCall, null, 2));
             }
         } catch (error) {
             console.error('[startInterview] Error:', error);
             setCallStatus('idle');
-            setVapiError(error instanceof Error ? error.message : 'Failed to start the interview');
+            setVapiError(error instanceof Error ? error.message : 'Failed to start interview');
         }
-    };
+    }, [user, vapiClient, context, sessionId, roundType, targetId, resetInterviewStore]);
 
-    const extractCallIdFromUrl = (url: string): string | null => {
-        try {
-            const urlObj = new URL(url);
-            const pathParts = urlObj.pathname.split('/');
-            return pathParts[pathParts.length - 1] || null;
-        } catch {
-            return null;
-        }
-    };
-
-    const stopInterview = async (): Promise<void> => {
+    // Stop interview
+    const stopInterview = useCallback((): Promise<void> => {
         return new Promise((resolve) => {
-            // Store the resolve function so call-end handler can call it
             callEndResolveRef.current = resolve;
-            
-            // Set a timeout in case call-end never fires
+
             const timeout = setTimeout(() => {
-                console.warn('[stopInterview] timeout waiting for call-end');
                 callEndResolveRef.current = null;
                 setCallStatus('idle');
                 setIsCallEnding(false);
                 resolve();
-            }, 15000); // 15 second timeout
+            }, 15000);
 
-            // Override resolve to also clear timeout
             const originalResolve = callEndResolveRef.current;
             callEndResolveRef.current = () => {
                 clearTimeout(timeout);
@@ -375,7 +396,7 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
             try {
                 vapiClient?.stop();
             } catch (err) {
-                console.error('[stopInterview] error stopping client:', err);
+                console.error('[stopInterview] Error:', err);
                 clearTimeout(timeout);
                 callEndResolveRef.current = null;
                 setCallStatus('idle');
@@ -383,9 +404,17 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
                 resolve();
             }
         });
-    };
+    }, [vapiClient]);
+
+    // Emit expression updates through socket
+    const handleExpressionUpdate = useCallback((expressions: Record<string, number>) => {
+        if (socketConnected && interviewId) {
+            emitExpressionUpdate(expressions);
+        }
+    }, [socketConnected, interviewId, emitExpressionUpdate]);
 
     return {
+        // VAPI state
         vapiClient,
         callStatus,
         isSpeaking,
@@ -393,9 +422,15 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
         contextStatus,
         context,
         conversation,
-        startInterview,
-        stopInterview,
         isCallEnding,
         interviewId,
+
+        // Actions
+        startInterview,
+        stopInterview,
+
+        // Socket-related
+        socketConnected,
+        emitExpressionUpdate: handleExpressionUpdate,
     };
 };

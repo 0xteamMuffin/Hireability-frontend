@@ -40,7 +40,7 @@ export interface ConversationEntry {
   role: string;
   text: string;
   timestamp: string;
-  isFinal: boolean;
+  isFinal?: boolean;
 }
 
 function Transcriber({ conversation }: { conversation: ConversationEntry[] }) {
