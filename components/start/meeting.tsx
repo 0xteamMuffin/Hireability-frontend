@@ -167,9 +167,12 @@ const Meeting: React.FC = () => {
     }
   }, [vapiClient, callStatus, contextStatus, vapiError, startInterview]);
 
-  // Reset store on unmount
+  // Reset store on unmount and clear interview ref
   useEffect(() => {
-    return () => resetStore();
+    return () => {
+      resetStore();
+      lastInterviewIdRef.current = null;
+    };
   }, [resetStore]);
 
   // Orb animation

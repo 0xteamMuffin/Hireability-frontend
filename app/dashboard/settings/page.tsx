@@ -7,7 +7,6 @@ import {
   Mail,
   Lock,
   Bell,
-  Moon,
   Globe,
   Trash2,
   Camera,
@@ -15,17 +14,46 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Users,
+  Cpu,
+  Code,
+  Network,
+  Briefcase,
+  ListChecks,
+  Settings2,
+  ChevronDown,
 } from "lucide-react";
 import { settingsApi, UserDetails, UpdateUserInput, UpdateSettingsInput } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { RoundType, ROUND_DISPLAY_INFO } from "@/lib/types";
+
+const AVAILABLE_LANGUAGES = [
+  { code: "en", name: "English (US)" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "pt", name: "Portuguese" },
+  { code: "zh", name: "Chinese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+];
+
+const ROUND_ICONS: Record<RoundType, React.ReactNode> = {
+  [RoundType.BEHAVIORAL]: <Users size={16} />,
+  [RoundType.TECHNICAL]: <Cpu size={16} />,
+  [RoundType.CODING]: <Code size={16} />,
+  [RoundType.SYSTEM_DESIGN]: <Network size={16} />,
+  [RoundType.HR]: <Briefcase size={16} />,
+};
 
 export default function SettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingPassword, setSavingPassword] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [savingInterviewSettings, setSavingInterviewSettings] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   
@@ -36,16 +64,15 @@ export default function SettingsPage() {
     bio: "",
   });
   
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  
   const [preferences, setPreferences] = useState<UpdateSettingsInput>({
     notifications: true,
-    darkMode: false,
     language: "en",
+  });
+
+  const [interviewSettings, setInterviewSettings] = useState({
+    multiRoundEnabled: true,
+    prerequisitesEnabled: true,
+    defaultRounds: ["BEHAVIORAL", "TECHNICAL"] as string[],
   });
 
   useEffect(() => {
@@ -65,8 +92,12 @@ export default function SettingsPage() {
       if (response.data.settings) {
         setPreferences({
           notifications: response.data.settings.notifications,
-          darkMode: response.data.settings.darkMode,
           language: response.data.settings.language,
+        });
+        setInterviewSettings({
+          multiRoundEnabled: response.data.settings.multiRoundEnabled ?? true,
+          prerequisitesEnabled: response.data.settings.prerequisitesEnabled ?? true,
+          defaultRounds: response.data.settings.defaultRounds ?? ["BEHAVIORAL", "TECHNICAL"],
         });
       }
     }
@@ -91,32 +122,6 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showMessage("error", "Passwords do not match");
-      return;
-    }
-    if (passwordData.newPassword.length < 6) {
-      showMessage("error", "Password must be at least 6 characters");
-      return;
-    }
-    
-    setSavingPassword(true);
-    const response = await settingsApi.updatePassword({
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
-    });
-    
-    if (response.success) {
-      showMessage("success", "Password updated successfully");
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } else {
-      showMessage("error", response.error || "Failed to update password");
-    }
-    setSavingPassword(false);
-  };
-
   const handleUpdatePreferences = async (key: keyof UpdateSettingsInput, value: boolean | string) => {
     const newPrefs = { ...preferences, [key]: value };
     setPreferences(newPrefs);
@@ -128,6 +133,32 @@ export default function SettingsPage() {
       showMessage("error", "Failed to update preferences");
     }
     setSavingPrefs(false);
+  };
+
+  const handleToggleRound = (roundType: string) => {
+    setInterviewSettings(prev => {
+      const rounds = prev.defaultRounds;
+      if (rounds.includes(roundType)) {
+        if (rounds.length <= 1) return prev;
+        return { ...prev, defaultRounds: rounds.filter(r => r !== roundType) };
+      }
+      return { ...prev, defaultRounds: [...rounds, roundType] };
+    });
+  };
+
+  const handleSaveInterviewSettings = async () => {
+    setSavingInterviewSettings(true);
+    const response = await settingsApi.updatePreferences({
+      multiRoundEnabled: interviewSettings.multiRoundEnabled,
+      prerequisitesEnabled: interviewSettings.prerequisitesEnabled,
+      defaultRounds: interviewSettings.defaultRounds,
+    });
+    if (response.success) {
+      showMessage("success", "Interview settings saved successfully");
+    } else {
+      showMessage("error", response.error || "Failed to save interview settings");
+    }
+    setSavingInterviewSettings(false);
   };
 
   const handleDeleteAccount = async () => {
@@ -297,9 +328,120 @@ export default function SettingsPage() {
               </div>
             </form>
           </section>
+
+          {/* Interview Settings Section */}
+          <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 shadow-sm">
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Settings2 size={20} className="text-indigo-400" /> Interview Settings
+            </h3>
+
+            <div className="space-y-6">
+              {/* Multi-Round Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-lg text-indigo-500">
+                    <ListChecks size={18} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700 text-sm">Multi-Round Interviews</p>
+                    <p className="text-xs text-slate-400">Enable multi-round interview sessions</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setInterviewSettings(prev => ({ ...prev, multiRoundEnabled: !prev.multiRoundEnabled }))}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                    interviewSettings.multiRoundEnabled ? "bg-indigo-400" : "bg-slate-200"
+                  }`}
+                >
+                  <motion.div
+                    animate={{ x: interviewSettings.multiRoundEnabled ? 24 : 0 }}
+                    className="w-4 h-4 bg-white rounded-full shadow-sm"
+                  />
+                </button>
+              </div>
+
+              {/* Prerequisites Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-50 rounded-lg text-amber-500">
+                    <Lock size={18} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700 text-sm">Round Prerequisites</p>
+                    <p className="text-xs text-slate-400">Require completing rounds in order</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setInterviewSettings(prev => ({ ...prev, prerequisitesEnabled: !prev.prerequisitesEnabled }))}
+                  disabled={!interviewSettings.multiRoundEnabled}
+                  className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                    interviewSettings.prerequisitesEnabled && interviewSettings.multiRoundEnabled 
+                      ? "bg-indigo-400" 
+                      : "bg-slate-200"
+                  } ${!interviewSettings.multiRoundEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <motion.div
+                    animate={{ x: interviewSettings.prerequisitesEnabled && interviewSettings.multiRoundEnabled ? 24 : 0 }}
+                    className="w-4 h-4 bg-white rounded-full shadow-sm"
+                  />
+                </button>
+              </div>
+
+              {/* Default Rounds Selection */}
+              <div className="pt-2">
+                <p className="font-semibold text-slate-700 text-sm mb-3">Default Interview Rounds</p>
+                <p className="text-xs text-slate-400 mb-4">Select which rounds to include in new interview sessions</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {Object.values(RoundType).map((roundType) => {
+                    const info = ROUND_DISPLAY_INFO[roundType];
+                    const isSelected = interviewSettings.defaultRounds.includes(roundType);
+                    return (
+                      <button
+                        key={roundType}
+                        onClick={() => handleToggleRound(roundType)}
+                        disabled={!interviewSettings.multiRoundEnabled}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                          isSelected 
+                            ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
+                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                        } ${!interviewSettings.multiRoundEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <div className={`p-1.5 rounded-lg ${isSelected ? "bg-indigo-100" : "bg-slate-100"}`}>
+                          {ROUND_ICONS[roundType]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{info.title}</p>
+                          <p className="text-xs text-slate-400 truncate">{info.estimatedDuration} min</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? "border-indigo-400 bg-indigo-400" : "border-slate-300"
+                        }`}>
+                          {isSelected && (
+                            <CheckCircle size={14} className="text-white" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <button 
+                  onClick={handleSaveInterviewSettings}
+                  disabled={savingInterviewSettings}
+                  className="bg-indigo-400 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {savingInterviewSettings ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  {savingInterviewSettings ? "Saving..." : "Save Interview Settings"}
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
 
         <div className="space-y-8">
+          {/* Preferences Section */}
           <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 shadow-sm h-fit">
             <h3 className="text-xl font-bold text-slate-800 mb-6">
               Preferences
@@ -332,32 +474,7 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
-                    <Moon size={18} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-700 text-sm">
-                      Dark Mode
-                    </p>
-                    <p className="text-xs text-slate-400">Reduce eye strain</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleUpdatePreferences("darkMode", !preferences.darkMode)}
-                  disabled={savingPrefs}
-                  className={`w-12 h-6 rounded-full p-1 transition-colors ${
-                    preferences.darkMode ? "bg-indigo-400" : "bg-slate-200"
-                  }`}
-                >
-                  <motion.div
-                    animate={{ x: preferences.darkMode ? 24 : 0 }}
-                    className="w-4 h-4 bg-white rounded-full shadow-sm"
-                  />
-                </button>
-              </div>
-
+              {/* Language Dropdown */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
@@ -368,24 +485,78 @@ export default function SettingsPage() {
                       Language
                     </p>
                     <p className="text-xs text-slate-400">
-                      {preferences.language === "en" ? "English (US)" : preferences.language}
+                      {AVAILABLE_LANGUAGES.find(l => l.code === preferences.language)?.name || "English (US)"}
                     </p>
                   </div>
                 </div>
-                <button className="text-sm font-bold text-indigo-400">
-                  Change
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                    className="text-sm font-bold text-indigo-400 flex items-center gap-1"
+                  >
+                    Change <ChevronDown size={14} className={`transition-transform ${showLanguageDropdown ? "rotate-180" : ""}`} />
+                  </button>
+                  {showLanguageDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-2 max-h-60 overflow-y-auto">
+                      {AVAILABLE_LANGUAGES.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => {
+                            handleUpdatePreferences("language", lang.code);
+                            setShowLanguageDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${
+                            preferences.language === lang.code 
+                              ? "text-indigo-500 font-semibold bg-indigo-50" 
+                              : "text-slate-700"
+                          }`}
+                        >
+                          {lang.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </section>
 
+          {/* Account Info Section */}
+          <section className="bg-white/60 backdrop-blur-md border border-white rounded-[2rem] p-8 shadow-sm h-fit">
+            <h3 className="text-xl font-bold text-slate-800 mb-6">
+              Account Info
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-sm text-slate-500">Username</span>
+                <span className="text-sm font-medium text-slate-700">@{user?.username}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-sm text-slate-500">Email</span>
+                <span className="text-sm font-medium text-slate-700 truncate max-w-[150px]">{user?.email}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-sm text-slate-500">Member Since</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-slate-500">Plan</span>
+                <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-500 text-xs font-semibold">
+                  Free
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* Danger Zone */}
           <section className="bg-red-50/50 border border-red-100 rounded-[2rem] p-8">
             <h3 className="text-red-600 font-bold mb-2 flex items-center gap-2">
               <Trash2 size={18} /> Danger Zone
             </h3>
             <p className="text-red-400/80 text-xs mb-4">
-              Deleting your account is permanent. All history and data will be
-              lost.
+              Deleting your account is permanent. All interview history, documents, and data will be permanently removed.
             </p>
             <button 
               onClick={handleDeleteAccount}

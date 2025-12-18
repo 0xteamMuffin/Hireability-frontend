@@ -303,6 +303,19 @@ export const ROUND_DISPLAY_INFO: Record<RoundType, Omit<RoundDisplayInfo, 'type'
     title: 'HR Round',
     description: 'Final discussion about role expectations and company fit',
     icon: 'briefcase',
-    estimatedDuration: 10,
+    estimatedDuration: 15,
   },
+};
+
+/**
+ * Level-based default rounds configuration
+ * Matches backend LEVEL_DEFAULT_ROUNDS
+ */
+export const LEVEL_DEFAULT_ROUNDS: Record<string, RoundType[]> = {
+  'Intern': [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
+  'Junior (SDE I)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
+  'Mid-Level (SDE II)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
+  'Senior (SDE III)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING],
+  'Staff Engineer': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING, RoundType.HR],
+  'Engineering Manager': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.HR],
 };

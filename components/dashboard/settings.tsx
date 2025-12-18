@@ -28,6 +28,7 @@ export const SettingsPage = () => {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [multiRoundEnabled, setMultiRoundEnabled] = useState(true);
+  const [prerequisitesEnabled, setPrerequisitesEnabled] = useState(true);
   const [defaultRounds, setDefaultRounds] = useState<string[]>(['BEHAVIORAL', 'TECHNICAL']);
   const [profile, setProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -58,6 +59,7 @@ export const SettingsPage = () => {
         setNotifications(settingsRes.data.notifications);
         setDarkMode(settingsRes.data.darkMode);
         setMultiRoundEnabled(settingsRes.data.multiRoundEnabled ?? true);
+        setPrerequisitesEnabled(settingsRes.data.prerequisitesEnabled ?? true);
         setDefaultRounds(settingsRes.data.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL']);
       }
     };
@@ -79,6 +81,7 @@ export const SettingsPage = () => {
     try {
       const res = await settingsApi.updatePreferences({
         multiRoundEnabled,
+        prerequisitesEnabled,
         defaultRounds,
       });
       if (res.success) {
@@ -396,6 +399,34 @@ export const SettingsPage = () => {
                   />
                 </button>
               </div>
+
+              {/* Prerequisites Toggle - only show when multi-round is enabled */}
+              {multiRoundEnabled && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+                      <Lock size={18} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-700 text-sm">
+                        Enforce Round Order
+                      </p>
+                      <p className="text-xs text-slate-400">Complete rounds in sequence</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPrerequisitesEnabled(!prerequisitesEnabled)}
+                    className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                      prerequisitesEnabled ? "bg-indigo-400" : "bg-slate-200"
+                    }`}
+                  >
+                    <motion.div
+                      animate={{ x: prerequisitesEnabled ? 24 : 0 }}
+                      className="w-4 h-4 bg-white rounded-full shadow-sm"
+                    />
+                  </button>
+                </div>
+              )}
 
               {/* Default Rounds Selection */}
               {multiRoundEnabled && (

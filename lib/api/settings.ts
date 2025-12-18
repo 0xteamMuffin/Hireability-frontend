@@ -7,6 +7,7 @@ export interface UserSettings {
   darkMode: boolean;
   language: string;
   multiRoundEnabled: boolean;
+  prerequisitesEnabled: boolean;
   defaultRounds: string[];
   createdAt: string;
   updatedAt: string;
@@ -42,6 +43,7 @@ export interface UpdateSettingsInput {
   darkMode?: boolean;
   language?: string;
   multiRoundEnabled?: boolean;
+  prerequisitesEnabled?: boolean;
   defaultRounds?: string[];
 }
 
