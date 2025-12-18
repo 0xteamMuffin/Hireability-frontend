@@ -43,9 +43,11 @@ const formatDuration = (seconds: number | null) => {
 };
 
 // Helper to get score from analysis dimension
-const getScore = (dimension: AnalysisDimension | null | undefined): number | null => {
-  if (!dimension || typeof dimension === 'string') return null;
-  if (typeof dimension === 'object' && 'score' in dimension) {
+const getScore = (
+  dimension: AnalysisDimension | null | undefined
+): number | null => {
+  if (!dimension || typeof dimension === "string") return null;
+  if (typeof dimension === "object" && "score" in dimension) {
     return dimension.score ?? null;
   }
   return null;
@@ -81,7 +83,7 @@ export const Analytics = () => {
   useEffect(() => {
     // Wait for auth to finish loading before making the request
     if (authLoading) return;
-    
+
     // Don't fetch if user is not authenticated (AuthGuard will handle redirect)
     if (!user) return;
 
@@ -96,7 +98,9 @@ export const Analytics = () => {
           setError(response.error || "Failed to load interviews");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load interviews");
+        setError(
+          err instanceof Error ? err.message : "Failed to load interviews"
+        );
       } finally {
         setLoading(false);
       }
@@ -114,7 +118,12 @@ export const Analytics = () => {
   }).length;
 
   const totalMinutes = interviews.reduce((acc, interview) => {
-    return acc + (interview.durationSeconds ? Math.floor(interview.durationSeconds / 60) : 0);
+    return (
+      acc +
+      (interview.durationSeconds
+        ? Math.floor(interview.durationSeconds / 60)
+        : 0)
+    );
   }, 0);
 
   const overallStats = [
@@ -237,7 +246,9 @@ export const Analytics = () => {
         ) : (
           <div className="space-y-3">
             {interviews.map((interview, idx) => {
-              const companyName = getCompanyFromContext(interview.contextPrompt);
+              const companyName = getCompanyFromContext(
+                interview.contextPrompt
+              );
               const role = getRoleFromContext(interview.contextPrompt);
               const overallScore = getOverallScore(interview);
               const duration = interview.durationSeconds
@@ -293,7 +304,10 @@ export const Analytics = () => {
                       onClick={() => handleViewMeeting(interview.id)}
                       className="bg-indigo-400 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-full font-semibold shadow-md hover:shadow-lg transition-all flex items-center gap-2 group/btn whitespace-nowrap cursor-pointer"
                     >
-                      <Eye size={16} className="group-hover/btn:scale-110 transition-transform" />
+                      <Eye
+                        size={16}
+                        className="group-hover/btn:scale-110 transition-transform"
+                      />
                       View
                     </button>
                   </div>
