@@ -159,11 +159,9 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
     });
 
     // Code executed
-    socket.on(SocketEvent.CODE_EXECUTED, (data: {
-      result: CodeExecutionResult;
-    }) => {
+    socket.on(SocketEvent.CODE_EXECUTED, (data: CodeExecutionResult) => {
       console.log('[Socket] Code executed:', data);
-      setCodeExecutionResult(data.result);
+      setCodeExecutionResult(data);
     });
 
     // Interview completed

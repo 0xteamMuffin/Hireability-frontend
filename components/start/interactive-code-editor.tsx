@@ -78,15 +78,15 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   codeRef.current = currentCode;
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update starter code when problem or language changes
+  // Update starter code when problem changes (starterCode is now a string, not Record)
   useEffect(() => {
-    if (codingProblem?.starterCode?.[codeLanguage]) {
-      const starterCode = codingProblem.starterCode[codeLanguage];
+    if (codingProblem?.starterCode) {
+      const starterCode = codingProblem.starterCode;
       if (!currentCode || currentCode.includes('// Write your') || currentCode.trim() === '') {
         setCurrentCode(starterCode);
       }
     }
-  }, [codingProblem, codeLanguage, currentCode, setCurrentCode]);
+  }, [codingProblem, currentCode, setCurrentCode]);
 
   // Handle editor changes with debounced sync
   const handleEditorChange = useCallback((value: string | undefined) => {
@@ -105,10 +105,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   // Handle language change
   const handleLanguageChange = (lang: string) => {
     setCodeLanguage(lang);
-    // Update starter code if available
-    if (codingProblem?.starterCode?.[lang]) {
-      setCurrentCode(codingProblem.starterCode[lang]);
-    }
+    // Note: starterCode is now a single string for the initially selected language
+    // Backend picks the language, so we don't auto-update starter code on language change
   };
 
   // Get hint
@@ -116,8 +114,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     if (!codingProblem || loadingHint) return;
 
     // First try built-in hints
-    if (codingProblem.hints && hintsUsed < codingProblem.hints.length) {
-      setHint(codingProblem.hints[hintsUsed]);
+    if (codingProblem.hintsAvailable && hintsUsed < codingProblem.hintsAvailable.length) {
+      setHint(codingProblem.hintsAvailable[hintsUsed]);
       setHintsUsed(prev => prev + 1);
       return;
     }
@@ -128,7 +126,7 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
       const resp = await codingApi.getHint(
         codeRef.current,
         codeLanguage,
-        codingProblem.description
+        codingProblem.problemDescription
       );
       if (resp.success && resp.data) {
         setHint(resp.data.hint);
@@ -191,8 +189,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
 
   // Reset code
   const handleReset = () => {
-    if (codingProblem?.starterCode?.[codeLanguage]) {
-      setCurrentCode(codingProblem.starterCode[codeLanguage]);
+    if (codingProblem?.starterCode) {
+      setCurrentCode(codingProblem.starterCode);
     } else {
       setCurrentCode('// Write your solution here\n');
     }
@@ -222,42 +220,62 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   };
 
   return (
-    <div 
-      className={`fixed top-0 left-0 h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-50 flex ${
-        isCodeEditorOpen ? 'w-[55%]' : 'w-0'
-      }`}
-    >
-      <div className="relative h-full flex-1 bg-[#1e1e1e] border-r border-white/10 flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="h-14 px-4 border-b border-white/10 flex items-center justify-between bg-[#252526] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-              <Code size={18} className="text-indigo-400" />
-            </div>
-            <h3 className="text-sm font-semibold text-zinc-200 tracking-wide uppercase">
-              {codingProblem ? 'Coding Challenge' : 'Code Editor'}
-            </h3>
-            {isCodingPhase && (
-              <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">
-                Live Coding
-              </span>
-            )}
+    <>
+      {/* Toggle Button - Always visible */}
+      <button
+        onClick={() => setCodeEditorOpen(!isCodeEditorOpen)}
+        className={`fixed top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-8 h-16 bg-[#252526] border border-white/10 rounded-r-lg text-zinc-400 hover:text-white hover:bg-[#2d2d2d] transition-all duration-300 shadow-lg group ${
+          isCodeEditorOpen ? 'left-[55%]' : 'left-0'
+        }`}
+        aria-label={isCodeEditorOpen ? 'Close code editor' : 'Open code editor'}
+      >
+        {isCodeEditorOpen ? (
+          <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <Code size={16} />
+            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
           </div>
+        )}
+      </button>
 
-          <div className="flex items-center gap-2">
-            <select
-              value={codeLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="bg-[#2d2d2d] text-zinc-300 text-xs px-3 py-1.5 rounded border border-white/5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-            >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.value} value={lang.value}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+      {/* Code Editor Panel */}
+      <div 
+        className={`fixed top-0 left-0 h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-40 ${
+          isCodeEditorOpen ? 'w-[55%]' : 'w-0 overflow-hidden'
+        }`}
+      >
+        <div className="relative h-full w-full bg-[#1e1e1e] border-r border-white/10 flex flex-col shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="h-14 px-4 border-b border-white/10 flex items-center justify-between bg-[#252526] shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-indigo-500/10 rounded-lg">
+                <Code size={18} className="text-indigo-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-zinc-200 tracking-wide uppercase">
+                {codingProblem ? 'Coding Challenge' : 'Code Editor'}
+              </h3>
+              {isCodingPhase && (
+                <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">
+                  Live Coding
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={codeLanguage}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="bg-[#2d2d2d] text-zinc-300 text-xs px-3 py-1.5 rounded border border-white/5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
 
         {/* Problem Description (Collapsible) */}
         {codingProblem && (
@@ -268,7 +286,7 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
               onClick={() => setShowProblem(!showProblem)}
               className="w-full px-4 py-2 flex items-center justify-between text-sm text-zinc-300 hover:bg-white/5"
             >
-              <span className="font-medium truncate">{codingProblem.title}</span>
+              <span className="font-medium truncate">{codingProblem.problemTitle}</span>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`px-2 py-0.5 rounded text-xs border ${getDifficultyColor(codingProblem.difficulty)}`}>
                   {codingProblem.difficulty}
@@ -280,7 +298,7 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
             {showProblem && (
               <div className="px-4 pb-4 max-h-56 overflow-y-auto">
                 <p className="text-sm text-zinc-400 whitespace-pre-wrap mb-3">
-                  {codingProblem.description}
+                  {codingProblem.problemDescription}
                 </p>
 
                 {/* Examples */}
@@ -484,8 +502,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
                   <Lightbulb size={14} />
                 )}
                 Hint
-                {codingProblem.hints && hintsUsed < codingProblem.hints.length && (
-                  <span className="text-zinc-500">({codingProblem.hints.length - hintsUsed})</span>
+                {codingProblem.hintsAvailable && hintsUsed < codingProblem.hintsAvailable.length && (
+                  <span className="text-zinc-500">({codingProblem.hintsAvailable.length - hintsUsed})</span>
                 )}
               </button>
             )}
@@ -522,25 +540,8 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Toggle Button */}
-      <div className="relative h-full flex items-center">
-        <button
-          onClick={() => setCodeEditorOpen(!isCodeEditorOpen)}
-          className="absolute -left-px flex items-center justify-center w-7 h-14 bg-[#252526] border border-white/10 border-l-0 rounded-r-lg text-zinc-400 hover:text-white hover:bg-[#2d2d2d] transition-all duration-200 shadow-lg group"
-          aria-label={isCodeEditorOpen ? 'Close code editor' : 'Open code editor'}
-        >
-          {isCodeEditorOpen ? (
-            <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <Code size={16} />
-              <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          )}
-        </button>
       </div>
-    </div>
+    </>
   );
 };
 

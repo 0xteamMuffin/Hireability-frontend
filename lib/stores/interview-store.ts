@@ -93,7 +93,13 @@ export const useInterviewStore = create<InterviewStore>()(
         set({ interviewState: state });
         
         // Auto-open code editor for coding rounds/phases
-        if (state?.phase === InterviewPhase.CODING || state?.roundType === RoundType.CODING) {
+        const isCodingPhase = 
+          state?.phase === InterviewPhase.CODING_SETUP ||
+          state?.phase === InterviewPhase.CODING_ACTIVE ||
+          state?.phase === InterviewPhase.CODING_REVIEW ||
+          state?.roundType === RoundType.CODING;
+          
+        if (isCodingPhase) {
           const { codingProblem } = get();
           if (codingProblem) {
             set({ isCodeEditorOpen: true });
@@ -114,22 +120,38 @@ export const useInterviewStore = create<InterviewStore>()(
       }),
       
       setCodingProblem: (problem) => {
+        console.log('[InterviewStore] setCodingProblem called with:', problem);
+        
         set({ 
           codingProblem: problem,
           // Reset code state
           codeExecutionResult: null,
         });
         
-        // Set starter code if available
-        if (problem?.starterCode) {
-          const { codeLanguage } = get();
-          const starterCode = problem.starterCode[codeLanguage] || 
-                             problem.starterCode['javascript'] || 
-                             '// Write your solution here\n';
-          set({ 
+        // Always open editor when coding problem is assigned
+        if (problem) {
+          // Get starter code - handle both string (from CodingState) and object formats
+          let starterCode = '// Write your solution here\n';
+          if (typeof problem.starterCode === 'string') {
+            starterCode = problem.starterCode;
+          } else if (typeof problem.currentCode === 'string' && problem.currentCode) {
+            starterCode = problem.currentCode;
+          }
+          
+          console.log('[InterviewStore] Opening code editor with starter code:', starterCode.substring(0, 50));
+          
+          // Set the language if provided
+          const updates: Partial<InterviewStore> = {
             currentCode: starterCode,
             isCodeEditorOpen: true,
-          });
+          };
+          
+          if (problem.language) {
+            updates.codeLanguage = problem.language;
+          }
+          
+          set(updates as any);
+          console.log('[InterviewStore] Code editor should now be open');
         }
       },
       
@@ -139,12 +161,8 @@ export const useInterviewStore = create<InterviewStore>()(
       
       setCodeLanguage: (language) => {
         set({ codeLanguage: language });
-        
-        // Update starter code if problem has it
-        const { codingProblem } = get();
-        if (codingProblem?.starterCode?.[language]) {
-          set({ currentCode: codingProblem.starterCode[language] });
-        }
+        // Note: starterCode is now a single string for the initially selected language
+        // Language changes don't auto-update starter code anymore since backend picks the language
       },
       
       addToTranscript: (entry) => set((state) => ({
@@ -169,7 +187,9 @@ export const selectIsInterviewActive = (state: InterviewStore) =>
   state.interviewState?.phase !== InterviewPhase.COMPLETED;
 
 export const selectIsCodingPhase = (state: InterviewStore) =>
-  state.interviewState?.phase === InterviewPhase.CODING ||
+  state.interviewState?.phase === InterviewPhase.CODING_SETUP ||
+  state.interviewState?.phase === InterviewPhase.CODING_ACTIVE ||
+  state.interviewState?.phase === InterviewPhase.CODING_REVIEW ||
   state.interviewState?.roundType === RoundType.CODING;
 
 export const selectPerformance = (state: InterviewStore) =>

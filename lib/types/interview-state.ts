@@ -3,18 +3,24 @@
  * Mirrors backend types for real-time sync
  */
 
-// Socket Events - must match backend SocketEvent enum
+// Socket Events - must match backend SocketEvent enum exactly
 export enum SocketEvent {
-  JOIN_INTERVIEW = 'join_interview',
-  LEAVE_INTERVIEW = 'leave_interview',
-  CODE_UPDATE = 'code_update',
-  EXPRESSION_UPDATE = 'expression_update',
-  STATE_UPDATE = 'state_update',
-  QUESTION_ASKED = 'question_asked',
-  ANSWER_EVALUATED = 'answer_evaluated',
-  CODING_PROBLEM_ASSIGNED = 'coding_problem_assigned',
-  CODE_EXECUTED = 'code_executed',
-  INTERVIEW_COMPLETED = 'interview_completed',
+  // Server -> Client
+  STATE_UPDATE = 'interview:state_update',
+  QUESTION_ASKED = 'interview:question_asked',
+  ANSWER_EVALUATED = 'interview:answer_evaluated',
+  CODING_PROBLEM_ASSIGNED = 'interview:coding_problem_assigned',
+  CODE_EXECUTED = 'interview:code_executed',
+  HINT_PROVIDED = 'interview:hint_provided',
+  PHASE_CHANGED = 'interview:phase_changed',
+  INTERVIEW_COMPLETED = 'interview:completed',
+  
+  // Client -> Server
+  JOIN_INTERVIEW = 'interview:join',
+  LEAVE_INTERVIEW = 'interview:leave',
+  CODE_UPDATE = 'interview:code_update',
+  EXPRESSION_UPDATE = 'interview:expression_update',
+  REQUEST_STATE = 'interview:request_state',
 }
 
 // Round types
@@ -26,15 +32,17 @@ export enum RoundType {
   HR = 'HR',
 }
 
-// Interview phases
+// Interview phases - must match backend exactly (lowercase)
 export enum InterviewPhase {
-  NOT_STARTED = 'NOT_STARTED',
-  INTRODUCTION = 'INTRODUCTION',
-  MAIN_QUESTIONS = 'MAIN_QUESTIONS',
-  FOLLOW_UP = 'FOLLOW_UP',
-  CODING = 'CODING',
-  WRAP_UP = 'WRAP_UP',
-  COMPLETED = 'COMPLETED',
+  NOT_STARTED = 'not_started',
+  INTRODUCTION = 'introduction',
+  MAIN_QUESTIONS = 'main_questions',
+  DEEP_DIVE = 'deep_dive',
+  CODING_SETUP = 'coding_setup',
+  CODING_ACTIVE = 'coding_active',
+  CODING_REVIEW = 'coding_review',
+  WRAP_UP = 'wrap_up',
+  COMPLETED = 'completed',
 }
 
 // Difficulty levels
@@ -85,25 +93,28 @@ export interface PerformanceMetrics {
   topicMastery: Record<string, number>;
 }
 
-// Coding problem received from backend
+// Coding problem received from backend (matches backend CodingState)
 export interface CodingProblem {
-  id: string;
-  title: string;
-  description: string;
+  problemId: string;
+  problemTitle: string;
+  problemDescription: string;
   difficulty: Difficulty;
-  category: string;
+  language: string;
+  currentCode: string;
+  starterCode: string; // Single starter code for selected language
+  hintsUsed: number;
+  hintsAvailable: string[];
+  testCasesPassed: number;
+  totalTestCases: number;
+  startedAt?: string;
+  timeSpentSeconds?: number;
+  // Optional fields that may come from the raw problem
+  category?: string;
   constraints?: string[];
   examples?: Array<{
     input: string;
     output: string;
     explanation?: string;
-  }>;
-  starterCode?: Record<string, string>;
-  hints?: string[];
-  testCases?: Array<{
-    input: string;
-    expectedOutput: string;
-    isHidden?: boolean;
   }>;
 }
 
