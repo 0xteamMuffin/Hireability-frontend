@@ -42,9 +42,9 @@ export interface ProfilePayload {
 
 export interface Document {
   id: string;
-  type: "RESUME" | "JOB_DESCRIPTION" | "OTHER";
+  type: 'RESUME' | 'JOB_DESCRIPTION' | 'OTHER';
   fileName: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   parsedData: Record<string, unknown> | null;
   confidence: number | null;
   processedAt: string | null;
@@ -88,7 +88,6 @@ export interface SaveCallMetadataPayload {
   callId: string;
 }
 
-// Multi-Round Interview System Enums (moved before Interview interface)
 export enum RoundType {
   BEHAVIORAL = 'BEHAVIORAL',
   TECHNICAL = 'TECHNICAL',
@@ -192,8 +191,6 @@ export interface InterviewWithAnalysis extends Interview {
     createdAt: string;
   }>;
 }
-
-// Multi-Round Interview System Types
 
 export interface InterviewRound {
   id: string;
@@ -312,10 +309,26 @@ export const ROUND_DISPLAY_INFO: Record<RoundType, Omit<RoundDisplayInfo, 'type'
  * Matches backend LEVEL_DEFAULT_ROUNDS
  */
 export const LEVEL_DEFAULT_ROUNDS: Record<string, RoundType[]> = {
-  'Intern': [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
+  Intern: [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
   'Junior (SDE I)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
   'Mid-Level (SDE II)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
-  'Senior (SDE III)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING],
-  'Staff Engineer': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING, RoundType.HR],
-  'Engineering Manager': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.HR],
+  'Senior (SDE III)': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.CODING,
+  ],
+  'Staff Engineer': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.CODING,
+    RoundType.HR,
+  ],
+  'Engineering Manager': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.HR,
+  ],
 };

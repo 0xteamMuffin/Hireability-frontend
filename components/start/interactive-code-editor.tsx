@@ -3,16 +3,16 @@
  * Real-time code editing with WebSocket sync and live execution results
  */
 
-"use client"
+'use client';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { 
-  Code, 
-  ChevronLeft, 
-  ChevronRight, 
-  Trash2, 
-  Play, 
-  Lightbulb, 
+import {
+  Code,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Play,
+  Lightbulb,
   Send,
   Loader2,
   Check,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useInterviewStore, selectIsCodingPhase } from '@/lib/stores/interview-store';
 import { Difficulty } from '@/lib/types/interview-state';
-import { codingApi } from '@/lib/api';
+import { vapiApi } from '@/lib/api';
 
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -50,7 +50,6 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   onCodeChange,
   isInterviewActive = false,
 }) => {
-  // Store state
   const {
     codingProblem,
     codeExecutionResult,
@@ -61,10 +60,9 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     setCodeLanguage,
     setCodeEditorOpen,
   } = useInterviewStore();
-  
+
   const isCodingPhase = useInterviewStore(selectIsCodingPhase);
 
-  // Local state
   const [showProblem, setShowProblem] = useState(true);
   const [showOutput, setShowOutput] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -78,68 +76,65 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
   codeRef.current = currentCode;
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update starter code when problem changes (starterCode is now a string, not Record)
   useEffect(() => {
     if (codingProblem?.starterCode) {
       const starterCode = codingProblem.starterCode;
-      if (!currentCode || currentCode.includes('// Write your') || currentCode.trim() === '') {
+      if (!currentCode || currentCode.includes('')) {
         setCurrentCode(starterCode);
       }
     }
   }, [codingProblem, currentCode, setCurrentCode]);
 
-  // Handle editor changes with debounced sync
-  const handleEditorChange = useCallback((value: string | undefined) => {
-    const newCode = value || '';
-    setCurrentCode(newCode);
+  const handleEditorChange = useCallback(
+    (value: string | undefined) => {
+      const newCode = value || '';
+      setCurrentCode(newCode);
 
-    // Debounce WebSocket sync
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      onCodeChange?.(newCode, codeLanguage);
-    }, 500);
-  }, [codeLanguage, onCodeChange, setCurrentCode]);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        onCodeChange?.(newCode, codeLanguage);
+      }, 500);
+    },
+    [codeLanguage, onCodeChange, setCurrentCode],
+  );
 
-  // Handle language change
   const handleLanguageChange = (lang: string) => {
     setCodeLanguage(lang);
-    // Note: starterCode is now a single string for the initially selected language
-    // Backend picks the language, so we don't auto-update starter code on language change
   };
 
-  // Get hint
   const handleGetHint = async () => {
     if (!codingProblem || loadingHint) return;
 
-    // First try built-in hints
     if (codingProblem.hintsAvailable && hintsUsed < codingProblem.hintsAvailable.length) {
       setHint(codingProblem.hintsAvailable[hintsUsed]);
-      setHintsUsed(prev => prev + 1);
+      setHintsUsed((prev) => prev + 1);
       return;
     }
 
-    // Then get AI hint
     setLoadingHint(true);
     try {
-      const resp = await codingApi.getHint(
-        codeRef.current,
-        codeLanguage,
-        codingProblem.problemDescription
-      );
+      if (!interviewId) {
+        setHint('Hint is unavailable: missing interviewId');
+        return;
+      }
+
+      const resp = await vapiApi.getCodingHint({ interviewId });
       if (resp.success && resp.data) {
         setHint(resp.data.hint);
-        setHintsUsed(prev => prev + 1);
+        setHintsUsed((prev) => prev + 1);
+      } else {
+        setHint(resp.error || 'Failed to get hint');
       }
     } catch (err) {
       console.error('Failed to get hint:', err);
+      setHint('Failed to get hint');
     } finally {
       setLoadingHint(false);
     }
   };
 
-  // Run code (local execution via backend)
   const handleRun = async () => {
     if (running) return;
     setRunning(true);
@@ -147,16 +142,26 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     setLocalOutput(null);
 
     try {
-      // Use the coding API to run the code
-      const resp = await codingApi.runCode?.({
+      if (!interviewId) {
+        setLocalOutput('Run is unavailable: missing interviewId');
+        return;
+      }
+
+      const resp = await vapiApi.executeCoding({
+        interviewId,
         code: codeRef.current,
         language: codeLanguage,
       });
-      
-      if (resp?.success && resp.data) {
-        setLocalOutput(resp.data.output || resp.data.error || 'No output');
+
+      if (resp.success && resp.data) {
+        const r = resp.data.result;
+        const passed = r.testResults?.filter((t) => t.passed).length || 0;
+        const total = r.testResults?.length || 0;
+        setLocalOutput(
+          r.output || r.error || (total ? `${passed}/${total} tests passed` : 'No output'),
+        );
       } else {
-        setLocalOutput(resp?.error || 'Execution failed');
+        setLocalOutput(resp.error || 'Execution failed');
       }
     } catch (err) {
       setLocalOutput('Failed to execute code');
@@ -165,47 +170,46 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
     }
   };
 
-  // Submit code for evaluation
   const handleSubmit = async () => {
-    if (!roundId || submitting) return;
+    if (!interviewId || submitting) return;
 
     setSubmitting(true);
     try {
-      const resp = await codingApi.submitCode({
-        roundId,
+      const resp = await vapiApi.executeCoding({
+        interviewId,
         code: codeRef.current,
         language: codeLanguage,
       });
 
-      if (resp.success && resp.data) {
+      if (resp.success) {
         setShowOutput(true);
+      } else {
+        setLocalOutput(resp.error || 'Submit failed');
       }
     } catch (err) {
       console.error('Submit failed:', err);
+      setLocalOutput('Submit failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Reset code
   const handleReset = () => {
     if (codingProblem?.starterCode) {
       setCurrentCode(codingProblem.starterCode);
     } else {
-      setCurrentCode('// Write your solution here\n');
+      setCurrentCode('');
     }
     setHint(null);
     setLocalOutput(null);
   };
 
-  // Auto-open for coding phase
   useEffect(() => {
     if (isCodingPhase && codingProblem && !isCodeEditorOpen) {
       setCodeEditorOpen(true);
     }
   }, [isCodingPhase, codingProblem, isCodeEditorOpen, setCodeEditorOpen]);
 
-  // Get difficulty color
   const getDifficultyColor = (difficulty: Difficulty) => {
     switch (difficulty) {
       case Difficulty.EASY:
@@ -224,39 +228,39 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
       {/* Toggle Button - Always visible */}
       <button
         onClick={() => setCodeEditorOpen(!isCodeEditorOpen)}
-        className={`fixed top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-8 h-16 bg-[#252526] border border-white/10 rounded-r-lg text-zinc-400 hover:text-white hover:bg-[#2d2d2d] transition-all duration-300 shadow-lg group ${
+        className={`group fixed top-1/2 z-50 flex h-16 w-8 -translate-y-1/2 items-center justify-center rounded-r-lg border border-white/10 bg-[#252526] text-zinc-400 shadow-lg transition-all duration-300 hover:bg-[#2d2d2d] hover:text-white ${
           isCodeEditorOpen ? 'left-[55%]' : 'left-0'
         }`}
         aria-label={isCodeEditorOpen ? 'Close code editor' : 'Open code editor'}
       >
         {isCodeEditorOpen ? (
-          <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+          <ChevronLeft size={18} className="transition-transform group-hover:-translate-x-0.5" />
         ) : (
           <div className="flex flex-col items-center gap-1">
             <Code size={16} />
-            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
           </div>
         )}
       </button>
 
       {/* Code Editor Panel */}
-      <div 
-        className={`fixed top-0 left-0 h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-40 ${
+      <div
+        className={`fixed top-0 left-0 z-40 h-full transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
           isCodeEditorOpen ? 'w-[55%]' : 'w-0 overflow-hidden'
         }`}
       >
-        <div className="relative h-full w-full bg-[#1e1e1e] border-r border-white/10 flex flex-col shadow-2xl overflow-hidden">
+        <div className="relative flex h-full w-full flex-col overflow-hidden border-r border-white/10 bg-[#1e1e1e] shadow-2xl">
           {/* Header */}
-          <div className="h-14 px-4 border-b border-white/10 flex items-center justify-between bg-[#252526] shrink-0">
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#252526] px-4">
             <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-indigo-500/10 rounded-lg">
+              <div className="rounded-lg bg-indigo-500/10 p-1.5">
                 <Code size={18} className="text-indigo-400" />
               </div>
-              <h3 className="text-sm font-semibold text-zinc-200 tracking-wide uppercase">
+              <h3 className="text-sm font-semibold tracking-wide text-zinc-200 uppercase">
                 {codingProblem ? 'Coding Challenge' : 'Code Editor'}
               </h3>
               {isCodingPhase && (
-                <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">
+                <span className="rounded border border-amber-500/30 bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
                   Live Coding
                 </span>
               )}
@@ -266,7 +270,7 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
               <select
                 value={codeLanguage}
                 onChange={(e) => handleLanguageChange(e.target.value)}
-                className="bg-[#2d2d2d] text-zinc-300 text-xs px-3 py-1.5 rounded border border-white/5 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                className="rounded border border-white/5 bg-[#2d2d2d] px-3 py-1.5 text-xs text-zinc-300 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.value} value={lang.value}>
@@ -277,269 +281,278 @@ const InteractiveCodeEditor: React.FC<InteractiveCodeEditorProps> = ({
             </div>
           </div>
 
-        {/* Problem Description (Collapsible) */}
-        {codingProblem && (
-          <div className={`border-b border-white/10 bg-[#1a1a1a] transition-all duration-300 ${
-            showProblem ? 'max-h-72' : 'max-h-10'
-          } overflow-hidden`}>
-            <button
-              onClick={() => setShowProblem(!showProblem)}
-              className="w-full px-4 py-2 flex items-center justify-between text-sm text-zinc-300 hover:bg-white/5"
+          {/* Problem Description (Collapsible) */}
+          {codingProblem && (
+            <div
+              className={`border-b border-white/10 bg-[#1a1a1a] transition-all duration-300 ${
+                showProblem ? 'max-h-72' : 'max-h-10'
+              } overflow-hidden`}
             >
-              <span className="font-medium truncate">{codingProblem.problemTitle}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`px-2 py-0.5 rounded text-xs border ${getDifficultyColor(codingProblem.difficulty)}`}>
-                  {codingProblem.difficulty}
-                </span>
-                {showProblem ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </div>
-            </button>
-
-            {showProblem && (
-              <div className="px-4 pb-4 max-h-56 overflow-y-auto">
-                <p className="text-sm text-zinc-400 whitespace-pre-wrap mb-3">
-                  {codingProblem.problemDescription}
-                </p>
-
-                {/* Examples */}
-                {codingProblem.examples && codingProblem.examples.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-zinc-500 font-medium">Examples:</p>
-                    {codingProblem.examples.map((ex, i) => (
-                      <div key={i} className="bg-[#252526] rounded p-2 text-xs font-mono">
-                        <p className="text-zinc-400">
-                          <span className="text-zinc-500">Input:</span> {ex.input}
-                        </p>
-                        <p className="text-zinc-400">
-                          <span className="text-zinc-500">Output:</span> {ex.output}
-                        </p>
-                        {ex.explanation && (
-                          <p className="text-zinc-500 mt-1">{ex.explanation}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Constraints */}
-                {codingProblem.constraints && codingProblem.constraints.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs text-zinc-500 font-medium mb-1">Constraints:</p>
-                    <ul className="text-xs text-zinc-400 space-y-0.5">
-                      {codingProblem.constraints.map((c, i) => (
-                        <li key={i} className="pl-2 relative before:absolute before:left-0 before:top-1.5 before:w-1 before:h-1 before:bg-zinc-600 before:rounded-full">
-                          {c}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Hint Display */}
-        {hint && (
-          <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20">
-            <div className="flex items-start gap-2">
-              <Lightbulb size={16} className="text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-200">{hint}</p>
               <button
-                onClick={() => setHint(null)}
-                className="text-amber-400 hover:text-amber-200 shrink-0"
+                onClick={() => setShowProblem(!showProblem)}
+                className="flex w-full items-center justify-between px-4 py-2 text-sm text-zinc-300 hover:bg-white/5"
               >
-                <X size={14} />
+                <span className="truncate font-medium">{codingProblem.problemTitle}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={`rounded border px-2 py-0.5 text-xs ${getDifficultyColor(codingProblem.difficulty)}`}
+                  >
+                    {codingProblem.difficulty}
+                  </span>
+                  {showProblem ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
               </button>
-            </div>
-          </div>
-        )}
 
-        {/* Editor Area */}
-        <div className="flex-1 min-h-0">
-          <Editor
-            height="100%"
-            language={codeLanguage}
-            value={currentCode}
-            theme="vs-dark"
-            onChange={handleEditorChange}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              lineNumbers: 'on',
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              padding: { top: 16 },
-              wordWrap: 'on',
-              tabSize: 2,
-            }}
-            loading={
-              <div className="flex items-center justify-center h-full bg-[#1e1e1e] text-zinc-500">
-                <Loader2 className="animate-spin" size={24} />
-              </div>
-            }
-          />
-        </div>
+              {showProblem && (
+                <div className="max-h-56 overflow-y-auto px-4 pb-4">
+                  <p className="mb-3 text-sm whitespace-pre-wrap text-zinc-400">
+                    {codingProblem.problemDescription}
+                  </p>
 
-        {/* Output Panel (Collapsible) */}
-        {showOutput && (
-          <div className="border-t border-white/10 bg-[#1a1a1a] max-h-48 overflow-hidden flex flex-col">
-            <div className="px-4 py-2 flex items-center justify-between border-b border-white/5">
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <Terminal size={14} />
-                <span>Output</span>
-              </div>
-              <button
-                onClick={() => setShowOutput(false)}
-                className="text-zinc-500 hover:text-zinc-300"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-3">
-              {/* Execution result from socket */}
-              {codeExecutionResult && (
-                <div className={`mb-2 p-2 rounded ${
-                  codeExecutionResult.success 
-                    ? 'bg-green-500/10 border border-green-500/20' 
-                    : 'bg-red-500/10 border border-red-500/20'
-                }`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    {codeExecutionResult.success ? (
-                      <Check size={14} className="text-green-400" />
-                    ) : (
-                      <X size={14} className="text-red-400" />
-                    )}
-                    <span className={`text-xs font-medium ${
-                      codeExecutionResult.success ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      {codeExecutionResult.success ? 'Success' : 'Error'}
-                    </span>
-                    {codeExecutionResult.executionTimeMs && (
-                      <span className="text-xs text-zinc-500 flex items-center gap-1">
-                        <Clock size={10} />
-                        {codeExecutionResult.executionTimeMs}ms
-                      </span>
-                    )}
-                  </div>
-                  
-                  {codeExecutionResult.output && (
-                    <pre className="text-xs text-zinc-300 font-mono whitespace-pre-wrap">
-                      {codeExecutionResult.output}
-                    </pre>
-                  )}
-                  
-                  {codeExecutionResult.error && (
-                    <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap">
-                      {codeExecutionResult.error}
-                    </pre>
-                  )}
-
-                  {/* Test results */}
-                  {codeExecutionResult.testResults && codeExecutionResult.testResults.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs text-zinc-400">
-                        Tests: {codeExecutionResult.passedTests}/{codeExecutionResult.totalTests} passed
-                      </p>
-                      {codeExecutionResult.testResults.map((test, i) => (
-                        <div key={i} className={`text-xs p-1.5 rounded ${
-                          test.passed ? 'bg-green-500/5' : 'bg-red-500/5'
-                        }`}>
-                          <span className={test.passed ? 'text-green-400' : 'text-red-400'}>
-                            {test.passed ? '✓' : '✗'}
-                          </span>
-                          <span className="text-zinc-400 ml-2">
-                            Input: {test.input} → Expected: {test.expectedOutput}
-                            {!test.passed && `, Got: ${test.actualOutput}`}
-                          </span>
+                  {/* Examples */}
+                  {codingProblem.examples && codingProblem.examples.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-zinc-500">Examples:</p>
+                      {codingProblem.examples.map((ex, i) => (
+                        <div key={i} className="rounded bg-[#252526] p-2 font-mono text-xs">
+                          <p className="text-zinc-400">
+                            <span className="text-zinc-500">Input:</span> {ex.input}
+                          </p>
+                          <p className="text-zinc-400">
+                            <span className="text-zinc-500">Output:</span> {ex.output}
+                          </p>
+                          {ex.explanation && <p className="mt-1 text-zinc-500">{ex.explanation}</p>}
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Local output */}
-              {localOutput && !codeExecutionResult && (
-                <pre className="text-xs text-zinc-300 font-mono whitespace-pre-wrap">
-                  {localOutput}
-                </pre>
-              )}
-
-              {/* Loading state */}
-              {running && (
-                <div className="flex items-center gap-2 text-zinc-400">
-                  <Loader2 size={14} className="animate-spin" />
-                  <span className="text-xs">Running...</span>
+                  {/* Constraints */}
+                  {codingProblem.constraints && codingProblem.constraints.length > 0 && (
+                    <div className="mt-3">
+                      <p className="mb-1 text-xs font-medium text-zinc-500">Constraints:</p>
+                      <ul className="space-y-0.5 text-xs text-zinc-400">
+                        {codingProblem.constraints.map((c, i) => (
+                          <li
+                            key={i}
+                            className="relative pl-2 before:absolute before:top-1.5 before:left-0 before:h-1 before:w-1 before:rounded-full before:bg-zinc-600"
+                          >
+                            {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+          )}
+
+          {/* Hint Display */}
+          {hint && (
+            <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-3">
+              <div className="flex items-start gap-2">
+                <Lightbulb size={16} className="mt-0.5 shrink-0 text-amber-400" />
+                <p className="text-sm text-amber-200">{hint}</p>
+                <button
+                  onClick={() => setHint(null)}
+                  className="shrink-0 text-amber-400 hover:text-amber-200"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Editor Area */}
+          <div className="min-h-0 flex-1">
+            <Editor
+              height="100%"
+              language={codeLanguage}
+              value={currentCode}
+              theme="vs-dark"
+              onChange={handleEditorChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 16 },
+                wordWrap: 'on',
+                tabSize: 2,
+              }}
+              loading={
+                <div className="flex h-full items-center justify-center bg-[#1e1e1e] text-zinc-500">
+                  <Loader2 className="animate-spin" size={24} />
+                </div>
+              }
+            />
           </div>
-        )}
 
-        {/* Action Bar */}
-        <div className="h-12 px-3 border-t border-white/10 bg-[#252526] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={14} />
-              Reset
-            </button>
+          {/* Output Panel (Collapsible) */}
+          {showOutput && (
+            <div className="flex max-h-48 flex-col overflow-hidden border-t border-white/10 bg-[#1a1a1a]">
+              <div className="flex items-center justify-between border-b border-white/5 px-4 py-2">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <Terminal size={14} />
+                  <span>Output</span>
+                </div>
+                <button
+                  onClick={() => setShowOutput(false)}
+                  className="text-zinc-500 hover:text-zinc-300"
+                >
+                  <X size={14} />
+                </button>
+              </div>
 
-            {codingProblem && (
+              <div className="flex-1 overflow-y-auto p-3">
+                {/* Execution result from socket */}
+                {codeExecutionResult && (
+                  <div
+                    className={`mb-2 rounded p-2 ${
+                      codeExecutionResult.success
+                        ? 'border border-green-500/20 bg-green-500/10'
+                        : 'border border-red-500/20 bg-red-500/10'
+                    }`}
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      {codeExecutionResult.success ? (
+                        <Check size={14} className="text-green-400" />
+                      ) : (
+                        <X size={14} className="text-red-400" />
+                      )}
+                      <span
+                        className={`text-xs font-medium ${
+                          codeExecutionResult.success ? 'text-green-400' : 'text-red-400'
+                        }`}
+                      >
+                        {codeExecutionResult.success ? 'Success' : 'Error'}
+                      </span>
+                      {codeExecutionResult.executionTimeMs && (
+                        <span className="flex items-center gap-1 text-xs text-zinc-500">
+                          <Clock size={10} />
+                          {codeExecutionResult.executionTimeMs}ms
+                        </span>
+                      )}
+                    </div>
+
+                    {codeExecutionResult.output && (
+                      <pre className="font-mono text-xs whitespace-pre-wrap text-zinc-300">
+                        {codeExecutionResult.output}
+                      </pre>
+                    )}
+
+                    {codeExecutionResult.error && (
+                      <pre className="font-mono text-xs whitespace-pre-wrap text-red-300">
+                        {codeExecutionResult.error}
+                      </pre>
+                    )}
+
+                    {/* Test results */}
+                    {codeExecutionResult.testResults &&
+                      codeExecutionResult.testResults.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-zinc-400">
+                            Tests: {codeExecutionResult.passedTests}/
+                            {codeExecutionResult.totalTests} passed
+                          </p>
+                          {codeExecutionResult.testResults.map((test, i) => (
+                            <div
+                              key={i}
+                              className={`rounded p-1.5 text-xs ${
+                                test.passed ? 'bg-green-500/5' : 'bg-red-500/5'
+                              }`}
+                            >
+                              <span className={test.passed ? 'text-green-400' : 'text-red-400'}>
+                                {test.passed ? '✓' : '✗'}
+                              </span>
+                              <span className="ml-2 text-zinc-400">
+                                Input: {test.input} → Expected: {test.expectedOutput}
+                                {!test.passed && `, Got: ${test.actualOutput}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* Local output */}
+                {localOutput && !codeExecutionResult && (
+                  <pre className="font-mono text-xs whitespace-pre-wrap text-zinc-300">
+                    {localOutput}
+                  </pre>
+                )}
+
+                {/* Loading state */}
+                {running && (
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Loader2 size={14} className="animate-spin" />
+                    <span className="text-xs">Running...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action Bar */}
+          <div className="flex h-12 shrink-0 items-center justify-between border-t border-white/10 bg-[#252526] px-3">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleGetHint}
-                disabled={loadingHint}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-amber-400 transition-colors disabled:opacity-50"
+                onClick={handleReset}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:text-red-400"
               >
-                {loadingHint ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Lightbulb size={14} />
-                )}
-                Hint
-                {codingProblem.hintsAvailable && hintsUsed < codingProblem.hintsAvailable.length && (
-                  <span className="text-zinc-500">({codingProblem.hintsAvailable.length - hintsUsed})</span>
-                )}
+                <Trash2 size={14} />
+                Reset
               </button>
-            )}
 
-            <button
-              onClick={handleRun}
-              disabled={running}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-green-400 transition-colors disabled:opacity-50"
-            >
-              {running ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Play size={14} />
+              {codingProblem && (
+                <button
+                  onClick={handleGetHint}
+                  disabled={loadingHint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:text-amber-400 disabled:opacity-50"
+                >
+                  {loadingHint ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Lightbulb size={14} />
+                  )}
+                  Hint
+                  {codingProblem.hintsAvailable &&
+                    hintsUsed < codingProblem.hintsAvailable.length && (
+                      <span className="text-zinc-500">
+                        ({codingProblem.hintsAvailable.length - hintsUsed})
+                      </span>
+                    )}
+                </button>
               )}
-              Run
-            </button>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {roundId && (
               <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                onClick={handleRun}
+                disabled={running}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:text-green-400 disabled:opacity-50"
               >
-                {submitting ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Send size={14} />
-                )}
-                Submit
+                {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                Run
               </button>
-            )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {roundId && (
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex items-center gap-2 rounded-md bg-green-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-500 disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  Submit
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </>
   );

@@ -1,19 +1,15 @@
-"use server";
+'use server';
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 
-// Initialize AI
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY });
 
 export async function generateResumeReview(resumeData: any, targets: any[]) {
   try {
-    // Format the targets into a readable string for the AI
     const targetsList =
       targets.length > 0
-        ? targets
-            .map((t) => `- Role: ${t.role} at Company: ${t.companyName}`)
-            .join("\n")
-        : "General Full Stack Developer roles at top tech companies.";
+        ? targets.map((t) => `- Role: ${t.role} at Company: ${t.companyName}`).join('\n')
+        : 'General Full Stack Developer roles at top tech companies.';
 
     const prompt = `
       You are an expert HR and recruitment analyst. Your task is to meticulously evaluate a candidate's resume against their specific career aspirations (Target Companies & Roles) and provide a structured assessment.
@@ -77,17 +73,15 @@ export async function generateResumeReview(resumeData: any, targets: any[]) {
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", // Using stable model to avoid 429 errors
+      model: 'gemini-2.5-flash',
       contents: prompt,
     });
 
-    // Handle new SDK response format
-    const text =
-      typeof response.text === "function" ? response.text : response.text || "";
+    const text = typeof response.text === 'function' ? response.text : response.text || '';
 
     return { success: true, data: text };
   } catch (error) {
-    console.error("AI Generation Error:", error);
-    return { success: false, error: "Failed to generate review." };
+    console.error('AI Generation Error:', error);
+    return { success: false, error: 'Failed to generate review.' };
   }
 }

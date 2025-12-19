@@ -1,6 +1,6 @@
-"use client";
-import React, { useEffect, useRef, useState } from "react";
-import * as faceapi from "face-api.js";
+'use client';
+import React, { useEffect, useRef, useState } from 'react';
+import * as faceapi from 'face-api.js';
 
 interface FacialDetectorProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -19,25 +19,20 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
 
-  // Load face-api models from local public folder
   useEffect(() => {
     const loadModels = async () => {
       try {
-        const MODEL_URL = "/models";
+        const MODEL_URL = '/models';
 
-        // --- CORRECT FIX ---
-        // 1. Explicitly set the backend (WebGL is fastest)
-        // We wrap this in a check because faceapi.tf might behave differently in some builds
         if (faceapi.tf) {
           try {
-            await faceapi.tf.setBackend("webgl");
-            console.log("Using WebGL backend");
+            await faceapi.tf.setBackend('webgl');
+            console.log('Using WebGL backend');
           } catch (err) {
-            console.warn("WebGL backend failed, falling back to CPU", err);
-            await faceapi.tf.setBackend("cpu");
+            console.warn('WebGL backend failed, falling back to CPU', err);
+            await faceapi.tf.setBackend('cpu');
           }
         }
-        // -------------------
 
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
@@ -45,16 +40,15 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
         ]);
 
         setModelsLoaded(true);
-        console.log("✅ Face-api models loaded from local files");
+        console.log('✅ Face-api models loaded from local files');
       } catch (error) {
-        console.error("❌ Error loading face-api models:", error);
+        console.error('❌ Error loading face-api models:', error);
       }
     };
 
     loadModels();
   }, []);
 
-  // Start/Stop expression detection
   useEffect(() => {
     if (!modelsLoaded || !isActive || !videoRef.current) {
       if (intervalRef.current) {
@@ -74,14 +68,13 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
             video,
             new faceapi.SsdMobilenetv1Options({
               minConfidence: 0.5,
-            })
+            }),
           )
           .withFaceExpressions();
 
         if (detections.length > 0) {
           const expressions = detections[0].expressions;
 
-          // Convert to percentages and log
           const expressionPercentages = {
             angry: Math.round(expressions.angry * 100),
             sad: Math.round(expressions.sad * 100),
@@ -92,9 +85,8 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
             disgusted: Math.round(expressions.disgusted * 100),
           };
 
-          console.log("📊 Expression Values:", expressionPercentages);
+          console.log('📊 Expression Values:', expressionPercentages);
 
-          // Send raw values (0-1) to parent for averaging
           const rawExpressions = {
             angry: expressions.angry,
             sad: expressions.sad,
@@ -107,15 +99,14 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
 
           onExpressionChange?.(rawExpressions);
 
-          // dominant expression
           const sorted = Object.keys(expressions).sort(
             (a, b) =>
               Number(expressions[b as keyof typeof expressions]) -
-              Number(expressions[a as keyof typeof expressions])
+              Number(expressions[a as keyof typeof expressions]),
           );
 
           const dominantExpression = sorted[0];
-          console.log(" Dominant Expression:", dominantExpression);
+          console.log(' Dominant Expression:', dominantExpression);
 
           if (canvasRef.current) {
             const canvas = canvasRef.current;
@@ -125,22 +116,16 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
             };
 
             faceapi.matchDimensions(canvas, displaySize);
-            const resizedDetections = faceapi.resizeResults(
-              detections,
-              displaySize
-            );
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext('2d');
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              // Uncomment to show visual overlay:
-              // faceapi.draw.drawDetections(canvas, resizedDetections);
-              // faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
             }
           }
         }
       } catch (error) {
-        console.error("❌ Error detecting expressions:", error);
+        console.error('❌ Error detecting expressions:', error);
       }
     };
 
@@ -157,8 +142,8 @@ const FacialDetector: React.FC<FacialDetectorProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      className="absolute top-0 left-0 w-full h-full pointer-events-none"
-      style={{ display: "none" }}
+      className="pointer-events-none absolute top-0 left-0 h-full w-full"
+      style={{ display: 'none' }}
     />
   );
 };

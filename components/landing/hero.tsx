@@ -1,6 +1,6 @@
-"use client";
-import { motion, Variants } from "framer-motion";
-import Link from "next/link";
+'use client';
+import { motion, Variants } from 'framer-motion';
+import Link from 'next/link';
 
 export const Hero = () => {
   const containerVariants: Variants = {
@@ -19,7 +19,7 @@ export const Hero = () => {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { type: "spring", stiffness: 40, damping: 10 },
+      transition: { type: 'spring', stiffness: 40, damping: 10 },
     },
   };
 
@@ -29,14 +29,14 @@ export const Hero = () => {
       transition: {
         duration: 8,
         repeat: Infinity,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       },
     },
   };
 
   return (
     <section
-      className="relative pt-32 pb-20 overflow-hidden bg-gradient-to-b from-white via-slate-50 to-slate-100"
+      className="relative overflow-hidden bg-gradient-to-b from-white via-slate-50 to-slate-100 pt-32 pb-20"
       style={{ fontFamily: "'Outfit', sans-serif" }}
     >
       <style>
@@ -48,8 +48,8 @@ export const Hero = () => {
         <div
           className="absolute inset-0 opacity-[1]"
           style={{
-            backgroundImage: "radial-gradient(#cbd5e1 1px, transparent 1px)", // Slate-300 dots
-            backgroundSize: "24px 24px",
+            backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
           }}
         ></div>
 
@@ -58,22 +58,22 @@ export const Hero = () => {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 2 }}
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-slate-200/40 blur-[120px] rounded-full pointer-events-none"
+          className="pointer-events-none absolute top-0 left-1/2 h-[600px] w-full -translate-x-1/2 rounded-full bg-slate-200/40 blur-[120px]"
         />
       </div>
 
       <motion.div
-        className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+        className="relative z-10 mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         {/* Badge */}
         <motion.div variants={itemVariants}>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border border-slate-200 text-sm font-semibold text-slate-600 mb-8 shadow-sm">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/60 px-4 py-1.5 text-sm font-semibold text-slate-600 shadow-sm backdrop-blur-md">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-400"></span>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-400"></span>
             </span>
             Transform your interviewing journey
           </div>
@@ -82,7 +82,7 @@ export const Hero = () => {
         {/* TITLE SECTION */}
         <motion.h1
           variants={itemVariants}
-          className="text-5xl md:text-7xl font-bold text-slate-800 tracking-tighter mb-8 leading-[1.1]"
+          className="mb-8 text-5xl leading-[1.1] font-bold tracking-tighter text-slate-800 md:text-7xl"
         >
           HireAbility <br />
           <span className="text-indigo-400">AI Interviewer</span>
@@ -91,23 +91,22 @@ export const Hero = () => {
         {/* Subtext */}
         <motion.p
           variants={itemVariants}
-          className="max-w-2xl mx-auto text-lg md:text-xl text-slate-500 mb-12 leading-relaxed font-light"
+          className="mx-auto mb-12 max-w-2xl text-lg leading-relaxed font-light text-slate-500 md:text-xl"
         >
-          Conduct live AI-led interviews using audio and video. We evaluate your
-          communication, technical accuracy, and confidence to make interview
-          practice more realistic.
+          Conduct live AI-led interviews using audio and video. We evaluate your communication,
+          technical accuracy, and confidence to make interview practice more realistic.
         </motion.p>
 
         {/* Buttons */}
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row justify-center gap-4 mb-20"
+          className="mb-20 flex flex-col justify-center gap-4 sm:flex-row"
         >
-          <Link href={"/signup"}>
+          <Link href={'/signup'}>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="bg-indigo-400 text-white px-8 py-3.5 rounded-full font-semibold shadow-lg shadow-slate-200 hover:bg-indigo-500 transition-colors text-lg"
+              className="rounded-full bg-indigo-400 px-8 py-3.5 text-lg font-semibold text-white shadow-lg shadow-slate-200 transition-colors hover:bg-indigo-500"
             >
               Get Started Now
             </motion.button>
@@ -119,13 +118,13 @@ export const Hero = () => {
           <motion.div
             variants={floatVariants}
             animate="animate"
-            className="relative mx-auto max-w-5xl rounded-2xl shadow-2xl shadow-slate-200/50 border border-white/80 bg-white/40 backdrop-blur-xl p-2 md:p-4"
+            className="relative mx-auto max-w-5xl rounded-2xl border border-white/80 bg-white/40 p-2 shadow-2xl shadow-slate-200/50 backdrop-blur-xl md:p-4"
           >
             {/* UPDATED: Real Image from Public Folder */}
             <img
               src="/screenshots/realdash1.png"
               alt="HireAbility Dashboard Interface"
-              className="w-full h-auto rounded-xl shadow-sm"
+              className="h-auto w-full rounded-xl shadow-sm"
             />
           </motion.div>
         </motion.div>

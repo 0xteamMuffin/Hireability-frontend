@@ -4,12 +4,7 @@
  */
 
 import { apiClient, ApiResponse } from './client';
-import {
-  CodingProblem,
-  CodeEvaluationResult,
-  SubmitCodePayload,
-  Difficulty,
-} from '../types';
+import { CodingProblem, CodeEvaluationResult, SubmitCodePayload, Difficulty } from '../types';
 
 interface RunCodePayload {
   code: string;
@@ -30,12 +25,12 @@ export const codingApi = {
    */
   getProblems: async (
     difficulty?: Difficulty,
-    category?: string
+    category?: string,
   ): Promise<ApiResponse<CodingProblem[]>> => {
     const params = new URLSearchParams();
     if (difficulty) params.append('difficulty', difficulty);
     if (category) params.append('category', category);
-    
+
     const query = params.toString();
     return apiClient.get(`/api/coding/problems${query ? `?${query}` : ''}`);
   },
@@ -45,12 +40,12 @@ export const codingApi = {
    */
   getRandomProblem: async (
     difficulty?: Difficulty,
-    category?: string
+    category?: string,
   ): Promise<ApiResponse<CodingProblem>> => {
     const params = new URLSearchParams();
     if (difficulty) params.append('difficulty', difficulty);
     if (category) params.append('category', category);
-    
+
     const query = params.toString();
     return apiClient.get(`/api/coding/problems/random${query ? `?${query}` : ''}`);
   },
@@ -68,7 +63,7 @@ export const codingApi = {
   assignProblem: async (
     roundId: string,
     problemId?: string,
-    difficulty?: Difficulty
+    difficulty?: Difficulty,
   ): Promise<ApiResponse<CodingProblem>> => {
     return apiClient.post(`/api/coding/round/${roundId}/assign`, {
       problemId,
@@ -96,7 +91,7 @@ export const codingApi = {
   getHint: async (
     code: string,
     language: string,
-    problemDescription: string
+    problemDescription: string,
   ): Promise<ApiResponse<{ hint: string }>> => {
     return apiClient.post('/api/coding/hint', {
       code,

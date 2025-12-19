@@ -1,14 +1,14 @@
-"use client";
-import { useState } from "react";
-import Link from "next/link"; // Import Next.js Link
-import { Menu, X } from "lucide-react";
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Menu, X } from 'lucide-react';
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <nav
-      className="fixed w-full bg-white/80 backdrop-blur-md z-50 border-b border-indigo-50"
+      className="fixed z-50 w-full border-b border-indigo-50 bg-white/80 backdrop-blur-md"
       style={{ fontFamily: "'Outfit', sans-serif" }}
     >
       {/* Ensure font is available */}
@@ -16,27 +16,22 @@ export const Navbar = () => {
         {`@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');`}
       </style>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo - Linked to Home */}
-          <Link
-            href="/"
-            className="flex-shrink-0 flex items-center gap-2 cursor-pointer group"
-          >
-            <div className="w-8 h-8 bg-indigo-400 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200 group-hover:bg-indigo-500 transition-colors">
-              <span className="text-white font-bold text-lg">H</span>
+          <Link href="/" className="group flex flex-shrink-0 cursor-pointer items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-400 shadow-md shadow-indigo-200 transition-colors group-hover:bg-indigo-500">
+              <span className="text-lg font-bold text-white">H</span>
             </div>
-            <span className="font-bold text-xl text-slate-900 tracking-tight">
-              HireAbility
-            </span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">HireAbility</span>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex space-x-8 items-center">
+          <div className="hidden items-center space-x-8 md:flex">
             {/* Login Link */}
             <Link
               href="/signin"
-              className="text-slate-600 font-medium hover:text-indigo-500 transition-colors"
+              className="font-medium text-slate-600 transition-colors hover:text-indigo-500"
             >
               Login
             </Link>
@@ -44,17 +39,17 @@ export const Navbar = () => {
             {/* Sign Up Link */}
             <Link
               href="/signup"
-              className="bg-indigo-400 text-white px-6 py-2 rounded-full font-semibold hover:bg-indigo-500 transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5"
+              className="transform rounded-full bg-indigo-400 px-6 py-2 font-semibold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-300"
             >
               Sign Up
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
+          <div className="flex items-center md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-slate-600 hover:text-indigo-500 transition-colors"
+              className="text-slate-600 transition-colors hover:text-indigo-500"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -64,14 +59,14 @@ export const Navbar = () => {
 
       {/* Mobile Menu Dropdown */}
       {isOpen && (
-        <div className="md:hidden bg-white border-b border-indigo-50 shadow-xl">
-          <div className="px-4 pt-2 pb-4 space-y-2">
+        <div className="border-b border-indigo-50 bg-white shadow-xl md:hidden">
+          <div className="space-y-2 px-4 pt-2 pb-4">
             {/* Scroll Links */}
-            {["Solution", "Features", "Team"].map((item) => (
+            {['Solution', 'Features', 'Team'].map((item) => (
               <a
                 key={item}
                 href={`#${item.toLowerCase()}`}
-                className="block px-3 py-2 rounded-lg text-base font-medium text-slate-600 hover:text-indigo-500 hover:bg-indigo-50 transition-colors"
+                className="block rounded-lg px-3 py-2 text-base font-medium text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-500"
                 onClick={() => setIsOpen(false)}
               >
                 {item}
@@ -79,18 +74,18 @@ export const Navbar = () => {
             ))}
 
             {/* Mobile Auth Links */}
-            <div className="pt-2 flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-2">
               <Link
                 href="/signin"
                 onClick={() => setIsOpen(false)}
-                className="w-full text-center text-slate-600 font-medium py-2 hover:text-indigo-500 block"
+                className="block w-full py-2 text-center font-medium text-slate-600 hover:text-indigo-500"
               >
                 Login
               </Link>
               <Link
                 href="/signup"
                 onClick={() => setIsOpen(false)}
-                className="w-full bg-indigo-400 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-500 shadow-md shadow-indigo-200 block text-center"
+                className="block w-full rounded-full bg-indigo-400 px-5 py-2 text-center font-medium text-white shadow-md shadow-indigo-200 hover:bg-indigo-500"
               >
                 Sign Up
               </Link>

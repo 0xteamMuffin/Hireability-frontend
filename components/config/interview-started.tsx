@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Mail, ArrowRight, Loader2 } from "lucide-react";
-import { sessionApi } from "@/lib/api";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { sessionApi } from '@/lib/api';
 
 interface InterviewStartBarProps {
   selectedCompany: {
@@ -17,23 +17,22 @@ interface InterviewStartBarProps {
 
 const getCompanyStyle = (companyName: string) => {
   const colors = [
-    "bg-orange-400",
-    "bg-blue-400",
-    "bg-red-400",
-    "bg-cyan-400",
-    "bg-indigo-400",
-    "bg-purple-400",
-    "bg-pink-400",
-    "bg-green-400",
-    "bg-yellow-400",
-    "bg-teal-400",
-    "bg-rose-400",
-    "bg-amber-400",
+    'bg-orange-400',
+    'bg-blue-400',
+    'bg-red-400',
+    'bg-cyan-400',
+    'bg-indigo-400',
+    'bg-purple-400',
+    'bg-pink-400',
+    'bg-green-400',
+    'bg-yellow-400',
+    'bg-teal-400',
+    'bg-rose-400',
+    'bg-amber-400',
   ];
 
   const colorIndex =
-    companyName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) %
-    colors.length;
+    companyName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
 
   return {
     logo: companyName[0].toUpperCase(),
@@ -41,29 +40,27 @@ const getCompanyStyle = (companyName: string) => {
   };
 };
 
-export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
-  selectedCompany,
-}) => {
+export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({ selectedCompany }) => {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const style = getCompanyStyle(selectedCompany.companyName);
 
   const handleCreateSession = async () => {
     if (isCreating) return;
-    
+
     setIsCreating(true);
     try {
-      const targetId = selectedCompany.id === "default-profile" ? undefined : selectedCompany.id;
+      const targetId = selectedCompany.id === 'default-profile' ? undefined : selectedCompany.id;
       const response = await sessionApi.createSession({ targetId });
-      
+
       if (response.success) {
-        router.push("/dashboard/interviews");
+        router.push('/dashboard/interviews');
       } else {
-        console.error("Failed to create session:", response.error);
+        console.error('Failed to create session:', response.error);
         setIsCreating(false);
       }
     } catch (error) {
-      console.error("Error creating session:", error);
+      console.error('Error creating session:', error);
       setIsCreating(false);
     }
   };
@@ -73,30 +70,30 @@ export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-slate-200 p-6 shadow-2xl"
+      className="fixed right-0 bottom-0 left-0 z-50 border-t border-slate-200 bg-white/90 p-6 shadow-2xl backdrop-blur-xl"
     >
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-6 flex-1">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+        <div className="flex flex-1 items-center gap-6">
           <div
-            className={`w-16 h-16 ${style.color} rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg shrink-0`}
+            className={`h-16 w-16 ${style.color} flex shrink-0 items-center justify-center rounded-xl text-2xl font-bold text-white shadow-lg`}
           >
             {style.logo}
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-slate-800 text-xl mb-1">
+            <h3 className="mb-1 text-xl font-bold text-slate-800">
               {selectedCompany.role} @ {selectedCompany.companyName}
             </h3>
-            <p className="text-sm text-slate-500 flex items-center gap-1">
+            <p className="flex items-center gap-1 text-sm text-slate-500">
               <Mail size={14} />
               {selectedCompany.companyEmail}
             </p>
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleCreateSession}
           disabled={isCreating}
-          className="bg-indigo-400 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-indigo-500 hover:scale-105 transition-all flex items-center gap-2 group whitespace-nowrap cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="group flex cursor-pointer items-center gap-2 rounded-full bg-indigo-400 px-8 py-4 font-bold whitespace-nowrap text-white shadow-lg transition-all hover:scale-105 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
         >
           {isCreating ? (
             <>
@@ -106,10 +103,7 @@ export const InterviewStartBar: React.FC<InterviewStartBarProps> = ({
           ) : (
             <>
               Create Interview Session
-              <ArrowRight
-                size={20}
-                className="group-hover:translate-x-1 transition-transform"
-              />
+              <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
             </>
           )}
         </button>

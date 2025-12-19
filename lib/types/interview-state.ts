@@ -3,9 +3,7 @@
  * Mirrors backend types for real-time sync
  */
 
-// Socket Events - must match backend SocketEvent enum exactly
 export enum SocketEvent {
-  // Server -> Client
   STATE_UPDATE = 'interview:state_update',
   QUESTION_ASKED = 'interview:question_asked',
   ANSWER_EVALUATED = 'interview:answer_evaluated',
@@ -14,8 +12,7 @@ export enum SocketEvent {
   HINT_PROVIDED = 'interview:hint_provided',
   PHASE_CHANGED = 'interview:phase_changed',
   INTERVIEW_COMPLETED = 'interview:completed',
-  
-  // Client -> Server
+
   JOIN_INTERVIEW = 'interview:join',
   LEAVE_INTERVIEW = 'interview:leave',
   CODE_UPDATE = 'interview:code_update',
@@ -23,7 +20,6 @@ export enum SocketEvent {
   REQUEST_STATE = 'interview:request_state',
 }
 
-// Round types
 export enum RoundType {
   BEHAVIORAL = 'BEHAVIORAL',
   TECHNICAL = 'TECHNICAL',
@@ -32,7 +28,6 @@ export enum RoundType {
   HR = 'HR',
 }
 
-// Interview phases - must match backend exactly (lowercase)
 export enum InterviewPhase {
   NOT_STARTED = 'not_started',
   INTRODUCTION = 'introduction',
@@ -45,14 +40,12 @@ export enum InterviewPhase {
   COMPLETED = 'completed',
 }
 
-// Difficulty levels
 export enum Difficulty {
   EASY = 'EASY',
   MEDIUM = 'MEDIUM',
   HARD = 'HARD',
 }
 
-// Question categories
 export enum QuestionCategory {
   BEHAVIORAL = 'BEHAVIORAL',
   TECHNICAL = 'TECHNICAL',
@@ -64,7 +57,6 @@ export enum QuestionCategory {
   CLOSING = 'CLOSING',
 }
 
-// Current question state
 export interface CurrentQuestion {
   id: string;
   question: string;
@@ -73,7 +65,6 @@ export interface CurrentQuestion {
   questionNumber: number;
 }
 
-// Answer evaluation
 export interface AnswerEvaluation {
   questionId: string;
   score: number;
@@ -83,7 +74,6 @@ export interface AnswerEvaluation {
   followUpQuestion?: string;
 }
 
-// Performance metrics
 export interface PerformanceMetrics {
   overallScore: number;
   questionsAnswered: number;
@@ -93,7 +83,6 @@ export interface PerformanceMetrics {
   topicMastery: Record<string, number>;
 }
 
-// Coding problem received from backend (matches backend CodingState)
 export interface CodingProblem {
   problemId: string;
   problemTitle: string;
@@ -101,14 +90,14 @@ export interface CodingProblem {
   difficulty: Difficulty;
   language: string;
   currentCode: string;
-  starterCode: string; // Single starter code for selected language
+  starterCode: string;
   hintsUsed: number;
   hintsAvailable: string[];
   testCasesPassed: number;
   totalTestCases: number;
   startedAt?: string;
   timeSpentSeconds?: number;
-  // Optional fields that may come from the raw problem
+
   category?: string;
   constraints?: string[];
   examples?: Array<{
@@ -118,7 +107,6 @@ export interface CodingProblem {
   }>;
 }
 
-// Coding state
 export interface CodingState {
   problemId: string | null;
   currentCode: string;
@@ -128,7 +116,6 @@ export interface CodingState {
   lastResult?: CodeExecutionResult;
 }
 
-// Code execution result
 export interface CodeExecutionResult {
   success: boolean;
   output?: string;
@@ -147,7 +134,6 @@ export interface CodeExecutionResult {
   totalTests?: number;
 }
 
-// Interview state snapshot - what we receive from backend
 export interface InterviewStateSnapshot {
   interviewId: string;
   userId: string;
@@ -163,7 +149,6 @@ export interface InterviewStateSnapshot {
   lastActivityAt: string;
 }
 
-// Transcript entry (enhanced)
 export interface TranscriptEntry {
   role: 'user' | 'assistant';
   content: string;
@@ -177,7 +162,6 @@ export interface TranscriptEntry {
   };
 }
 
-// Round display info - keep consistent with existing types
 export interface RoundDisplayInfo {
   type: RoundType;
   title: string;

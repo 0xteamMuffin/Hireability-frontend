@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Target,
@@ -11,8 +11,8 @@ import {
   ExternalLink,
   Building2,
   Loader2,
-} from "lucide-react";
-import { targetApi, TargetCompany, CreateTargetInput } from "@/lib/api";
+} from 'lucide-react';
+import { targetApi, TargetCompany, CreateTargetInput } from '@/lib/api';
 
 export const TargetPage = () => {
   const [targets, setTargets] = useState<TargetCompany[]>([]);
@@ -21,9 +21,9 @@ export const TargetPage = () => {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const [newTarget, setNewTarget] = useState<CreateTargetInput>({
-    companyName: "",
-    role: "",
-    websiteLink: "",
+    companyName: '',
+    role: '',
+    websiteLink: '',
   });
 
   useEffect(() => {
@@ -45,10 +45,10 @@ export const TargetPage = () => {
 
     setSubmitting(true);
     const response = await targetApi.create(newTarget);
-    
+
     if (response.success && response.data) {
       setTargets([response.data, ...targets]);
-      setNewTarget({ companyName: "", role: "", websiteLink: "" });
+      setNewTarget({ companyName: '', role: '', websiteLink: '' });
     }
     setSubmitting(false);
   };
@@ -56,7 +56,7 @@ export const TargetPage = () => {
   const handleDelete = async (id: string) => {
     setDeleting(id);
     const response = await targetApi.delete(id);
-    
+
     if (response.success) {
       setTargets(targets.filter((t) => t.id !== id));
     }
@@ -68,9 +68,9 @@ export const TargetPage = () => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
@@ -83,72 +83,62 @@ export const TargetPage = () => {
       className="space-y-8 pb-10"
     >
       <header>
-        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
-          Target Companies
-        </h1>
-        <p className="text-slate-500 mt-1">
-          Track the companies and roles you are targeting.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-800">Target Companies</h1>
+        <p className="mt-1 text-slate-500">Track the companies and roles you are targeting.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <section className="bg-white/60 backdrop-blur-md border border-white rounded-4xl p-6 shadow-sm sticky top-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <section className="sticky top-6 rounded-4xl border border-white bg-white/60 p-6 shadow-sm backdrop-blur-md">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
               <Plus size={18} className="text-indigo-400" /> Add New Target
             </h3>
 
             <form onSubmit={handleAddTarget} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
+                <label className="mb-1.5 ml-1 block text-xs font-semibold tracking-wider text-slate-500 uppercase">
                   Company Name
                 </label>
                 <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Building2 className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="e.g. Netflix"
                     value={newTarget.companyName}
-                    onChange={(e) =>
-                      setNewTarget({ ...newTarget, companyName: e.target.value })
-                    }
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all text-sm"
+                    onChange={(e) => setNewTarget({ ...newTarget, companyName: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-10 text-sm text-slate-800 transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
+                <label className="mb-1.5 ml-1 block text-xs font-semibold tracking-wider text-slate-500 uppercase">
                   Target Role
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Briefcase className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="e.g. Senior Backend Dev"
                     value={newTarget.role}
-                    onChange={(e) =>
-                      setNewTarget({ ...newTarget, role: e.target.value })
-                    }
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all text-sm"
+                    onChange={(e) => setNewTarget({ ...newTarget, role: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-10 text-sm text-slate-800 transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
+                <label className="mb-1.5 ml-1 block text-xs font-semibold tracking-wider text-slate-500 uppercase">
                   Website Link
                 </label>
                 <div className="relative">
-                  <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <LinkIcon className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     type="url"
                     placeholder="https://..."
-                    value={newTarget.websiteLink || ""}
-                    onChange={(e) =>
-                      setNewTarget({ ...newTarget, websiteLink: e.target.value })
-                    }
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 transition-all text-sm"
+                    value={newTarget.websiteLink || ''}
+                    onChange={(e) => setNewTarget({ ...newTarget, websiteLink: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pr-4 pl-10 text-sm text-slate-800 transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/10 focus:outline-none"
                   />
                 </div>
               </div>
@@ -156,21 +146,21 @@ export const TargetPage = () => {
               <button
                 type="submit"
                 disabled={!newTarget.companyName || !newTarget.role || submitting}
-                className="w-full bg-indigo-400 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2"
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-400 py-3 font-bold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-500 hover:shadow-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Adding...
                   </>
                 ) : (
-                  "Add Target"
+                  'Add Target'
                 )}
               </button>
             </form>
           </section>
         </div>
 
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 size={32} className="animate-spin text-indigo-400" />
@@ -183,18 +173,16 @@ export const TargetPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                  className="group bg-white/80 backdrop-blur-md border border-white p-6 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between"
+                  className="group flex items-center justify-between rounded-2xl border border-white bg-white/80 p-6 shadow-sm backdrop-blur-md transition-all hover:shadow-md"
                 >
                   <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-400 font-bold text-xl border border-indigo-100">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-xl font-bold text-indigo-400">
                       {target.companyName.charAt(0)}
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-slate-800">
-                        {target.role}
-                      </h4>
-                      <p className="text-slate-500 font-medium">{target.companyName}</p>
-                      <div className="flex items-center gap-3 mt-1">
+                      <h4 className="text-lg font-bold text-slate-800">{target.role}</h4>
+                      <p className="font-medium text-slate-500">{target.companyName}</p>
+                      <div className="mt-1 flex items-center gap-3">
                         <span className="text-xs text-slate-400">
                           Added {formatDate(target.createdAt)}
                         </span>
@@ -214,7 +202,7 @@ export const TargetPage = () => {
 
                   <div className="flex items-center gap-3">
                     <button
-                      className="bg-slate-100 text-slate-400 p-2.5 rounded-xl hover:bg-red-50 hover:text-red-400 transition-colors disabled:opacity-50"
+                      className="rounded-xl bg-slate-100 p-2.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-400 disabled:opacity-50"
                       onClick={() => handleDelete(target.id)}
                       disabled={deleting === target.id}
                     >
@@ -231,12 +219,12 @@ export const TargetPage = () => {
           )}
 
           {!loading && targets.length === 0 && (
-            <div className="text-center py-12 bg-white/40 border-2 border-dashed border-slate-200 rounded-4xl">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+            <div className="rounded-4xl border-2 border-dashed border-slate-200 bg-white/40 py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
                 <Target size={32} />
               </div>
-              <p className="text-slate-500 font-medium">No targets set yet.</p>
-              <p className="text-slate-400 text-sm">
+              <p className="font-medium text-slate-500">No targets set yet.</p>
+              <p className="text-sm text-slate-400">
                 Start by adding a company you want to work for.
               </p>
             </div>
