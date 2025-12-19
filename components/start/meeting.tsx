@@ -7,7 +7,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AlertCircle, Loader2, Radio, Wifi, WifiOff, TrendingUp } from 'lucide-react';
 import MeetingVideo from './meeting-video';
-import { useAuth, useVapi, useSocket } from '@/lib/hooks';
+import { useAuth, useVapi } from '@/lib/hooks';
 import Transcriber from './transcriber';
 import VapiOrb from './ui/vapi-orb';
 import MeetingControls from './ui/metting-controls';
@@ -94,19 +94,13 @@ const Meeting: React.FC = () => {
     isCallEnding,
     interviewId,
     emitExpressionUpdate,
+    emitCodeUpdate,
   } = useVapi({
     user,
     targetId,
     sessionId,
     roundType: roundType || undefined,
     getAverageExpressions,
-  });
-
-  // Socket connection
-  const { emitCodeUpdate } = useSocket({
-    interviewId,
-    userId: user?.id || null,
-    enabled: !!interviewId,
   });
 
   // Keep ref updated with latest interviewId for use after cleanup

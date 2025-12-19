@@ -122,37 +122,34 @@ export const useInterviewStore = create<InterviewStore>()(
       setCodingProblem: (problem) => {
         console.log('[InterviewStore] setCodingProblem called with:', problem);
         
+        if (!problem) {
+          set({ 
+            codingProblem: null,
+            codeExecutionResult: null,
+          });
+          return;
+        }
+        
+        // Get starter code - handle both string (from CodingState) and object formats
+        let starterCode = '// Write your solution here\n';
+        if (typeof problem.starterCode === 'string' && problem.starterCode) {
+          starterCode = problem.starterCode;
+        } else if (typeof problem.currentCode === 'string' && problem.currentCode) {
+          starterCode = problem.currentCode;
+        }
+        
+        console.log('[InterviewStore] Opening code editor with starter code:', starterCode.substring(0, 50));
+        
+        // Set all state in one atomic update to ensure editor opens
         set({ 
           codingProblem: problem,
-          // Reset code state
           codeExecutionResult: null,
+          currentCode: starterCode,
+          isCodeEditorOpen: true,
+          codeLanguage: problem.language || 'javascript',
         });
         
-        // Always open editor when coding problem is assigned
-        if (problem) {
-          // Get starter code - handle both string (from CodingState) and object formats
-          let starterCode = '// Write your solution here\n';
-          if (typeof problem.starterCode === 'string') {
-            starterCode = problem.starterCode;
-          } else if (typeof problem.currentCode === 'string' && problem.currentCode) {
-            starterCode = problem.currentCode;
-          }
-          
-          console.log('[InterviewStore] Opening code editor with starter code:', starterCode.substring(0, 50));
-          
-          // Set the language if provided
-          const updates: Partial<InterviewStore> = {
-            currentCode: starterCode,
-            isCodeEditorOpen: true,
-          };
-          
-          if (problem.language) {
-            updates.codeLanguage = problem.language;
-          }
-          
-          set(updates as any);
-          console.log('[InterviewStore] Code editor should now be open');
-        }
+        console.log('[InterviewStore] Code editor should now be open');
       },
       
       setCodeExecutionResult: (result) => set({ codeExecutionResult: result }),

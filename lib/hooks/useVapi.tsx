@@ -64,7 +64,7 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
 
     // Socket connection for real-time updates
     // Connect as soon as we have an interviewId (not just when in-call)
-    const { emitExpressionUpdate } = useSocket({
+    const { emitExpressionUpdate, emitCodeUpdate } = useSocket({
         interviewId,
         userId: user?.id || null,
         enabled: !!interviewId,
@@ -413,6 +413,13 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
         }
     }, [socketConnected, interviewId, emitExpressionUpdate]);
 
+    // Emit code updates through socket
+    const handleCodeUpdate = useCallback((code: string, language: string) => {
+        if (socketConnected && interviewId) {
+            emitCodeUpdate(code, language);
+        }
+    }, [socketConnected, interviewId, emitCodeUpdate]);
+
     return {
         // VAPI state
         vapiClient,
@@ -432,5 +439,6 @@ export const useVapi = ({ user, targetId, sessionId, roundType, getAverageExpres
         // Socket-related
         socketConnected,
         emitExpressionUpdate: handleExpressionUpdate,
+        emitCodeUpdate: handleCodeUpdate,
     };
 };

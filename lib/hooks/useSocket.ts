@@ -2,14 +2,20 @@
 /**
  * Socket.io client hook for real-time interview state sync
  * Connects to backend WebSocket server and manages event subscriptions
+ * Uses singleton pattern to ensure only one socket connection exists
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useInterviewStore } from '../stores/interview-store';
 import { SocketEvent, InterviewStateSnapshot, CodingProblem, CodeExecutionResult } from '../types/interview-state';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+// Singleton socket instance - shared across all hook consumers
+let sharedSocket: Socket | null = null;
+let sharedSocketUserId: string | null = null;
+let connectionCount = 0;
 
 interface UseSocketOptions {
   interviewId?: string | null;
@@ -18,8 +24,8 @@ interface UseSocketOptions {
 }
 
 export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOptions) => {
-  const socketRef = useRef<Socket | null>(null);
   const currentRoomRef = useRef<string | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   
   const {
     setConnected,
@@ -34,19 +40,25 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
 
   // Emit code update to server
   const emitCodeUpdate = useCallback((code: string, language: string) => {
-    if (socketRef.current?.connected && interviewId) {
-      socketRef.current.emit(SocketEvent.CODE_UPDATE, {
+    if (sharedSocket?.connected && interviewId) {
+      console.log('[Socket] Emitting CODE_UPDATE', { codeLength: code.length, language });
+      sharedSocket.emit(SocketEvent.CODE_UPDATE, {
         interviewId,
         code,
         language,
+      });
+    } else {
+      console.warn('[Socket] Cannot emit CODE_UPDATE: socket not connected or no interviewId', { 
+        connected: sharedSocket?.connected, 
+        interviewId 
       });
     }
   }, [interviewId]);
 
   // Emit expression data to server
   const emitExpressionUpdate = useCallback((expressions: Record<string, number>) => {
-    if (socketRef.current?.connected && interviewId) {
-      socketRef.current.emit(SocketEvent.EXPRESSION_UPDATE, {
+    if (sharedSocket?.connected && interviewId) {
+      sharedSocket.emit(SocketEvent.EXPRESSION_UPDATE, {
         interviewId,
         expressions,
       });
@@ -59,9 +71,33 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
       return;
     }
 
-    // Don't recreate if already connected
-    if (socketRef.current?.connected) {
-      return;
+    // Track how many hook instances are using the socket
+    connectionCount++;
+
+    // If socket already exists for this user, reuse it
+    if (sharedSocket?.connected && sharedSocketUserId === userId) {
+      console.log('[Socket] Reusing existing connection:', sharedSocket.id);
+      setIsSocketConnected(true);
+      setConnected(true);
+      return () => {
+        connectionCount--;
+        // Only disconnect when no more consumers
+        if (connectionCount === 0) {
+          console.log('[Socket] No more consumers, disconnecting');
+          sharedSocket?.disconnect();
+          sharedSocket = null;
+          sharedSocketUserId = null;
+          setConnected(false);
+          setIsSocketConnected(false);
+        }
+      };
+    }
+
+    // Different user - disconnect old socket first
+    if (sharedSocket && sharedSocketUserId !== userId) {
+      sharedSocket.disconnect();
+      sharedSocket = null;
+      sharedSocketUserId = null;
     }
 
     console.log('[Socket] Creating new connection...');
@@ -73,18 +109,21 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
       reconnectionDelay: 1000,
     });
 
-    socketRef.current = socket;
+    sharedSocket = socket;
+    sharedSocketUserId = userId;
 
     // Connection events
     socket.on('connect', () => {
       console.log('[Socket] Connected:', socket.id);
       setConnected(true);
+      setIsSocketConnected(true);
       setError(null);
     });
 
     socket.on('disconnect', (reason) => {
       console.log('[Socket] Disconnected:', reason);
       setConnected(false);
+      setIsSocketConnected(false);
       currentRoomRef.current = null;
     });
 
@@ -178,10 +217,14 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
     });
 
     return () => {
-      console.log('[Socket] Cleaning up connection');
-      if (socket) {
+      connectionCount--;
+      console.log('[Socket] Cleanup called, remaining consumers:', connectionCount);
+      // Only disconnect when no more consumers
+      if (connectionCount === 0) {
+        console.log('[Socket] No more consumers, disconnecting');
         socket.disconnect();
-        socketRef.current = null;
+        sharedSocket = null;
+        sharedSocketUserId = null;
         currentRoomRef.current = null;
         setConnected(false);
       }
@@ -200,31 +243,30 @@ export const useSocket = ({ interviewId, userId, enabled = true }: UseSocketOpti
     setError,
   ]);
 
-  // Join/leave interview rooms when interviewId changes (separate effect)
+  // Join/leave interview rooms when interviewId changes or socket connects (separate effect)
   useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket?.connected || !userId) {
+    if (!isSocketConnected || !sharedSocket?.connected || !userId) {
       return;
     }
 
     // Leave previous room if different
     if (currentRoomRef.current && currentRoomRef.current !== interviewId) {
       console.log('[Socket] Leaving room:', currentRoomRef.current);
-      socket.emit(SocketEvent.LEAVE_INTERVIEW, { interviewId: currentRoomRef.current });
+      sharedSocket.emit(SocketEvent.LEAVE_INTERVIEW, { interviewId: currentRoomRef.current });
       currentRoomRef.current = null;
     }
 
     // Join new room
     if (interviewId && interviewId !== currentRoomRef.current) {
       console.log('[Socket] Joining room:', interviewId);
-      socket.emit(SocketEvent.JOIN_INTERVIEW, { interviewId, userId });
+      sharedSocket.emit(SocketEvent.JOIN_INTERVIEW, { interviewId, userId });
       currentRoomRef.current = interviewId;
     }
-  }, [interviewId, userId]);
+  }, [interviewId, userId, isSocketConnected]);
 
   return {
-    socket: socketRef.current,
-    isConnected: socketRef.current?.connected || false,
+    socket: sharedSocket,
+    isConnected: isSocketConnected,
     emitCodeUpdate,
     emitExpressionUpdate,
   };
