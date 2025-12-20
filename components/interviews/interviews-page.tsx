@@ -742,7 +742,7 @@ const InterviewsPage = () => {
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`h-10 w-10 rounded-lg font-medium transition-all ${
+                  className={`h-10 w-10 rounded-lg font-medium transition-all cursor-pointer ${
                     currentPage === page
                       ? 'bg-indigo-400 text-white shadow-md'
                       : 'border border-slate-200 text-slate-600 hover:bg-slate-100'

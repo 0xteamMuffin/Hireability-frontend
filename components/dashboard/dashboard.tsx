@@ -191,10 +191,10 @@ export const DashboardHome = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="group rounded-2xl border border-white bg-white/60 p-6 shadow-sm backdrop-blur-md transition-shadow hover:shadow-md"
+            className="group rounded-2xl border border-white bg-white/60 p-6 shadow-sm backdrop-blur-md transition-shadow"
           >
             <div className="mb-4 flex items-start justify-between">
-              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-400 transition-colors group-hover:bg-indigo-400 group-hover:text-white">
+              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-400 transition-colors">
                 {stat.icon}
               </div>
               <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
