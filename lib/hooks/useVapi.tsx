@@ -50,6 +50,10 @@ export const useVapi = ({
   const [callId, setCallId] = useState<string | null>(null);
   const [interviewId, setInterviewId] = useState<string | null>(null);
   const [isCallEnding, setIsCallEnding] = useState(false);
+  const [codingQuestionDetected, setCodingQuestionDetected] = useState<{
+    question: string;
+    conversation: ConversationEntry[];
+  } | null>(null);
 
   const interviewIdRef = useRef<string | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -58,6 +62,8 @@ export const useVapi = ({
   const callStartedAtRef = useRef<Date | null>(null);
   const activeAssistantIdRef = useRef<string | null>(null);
   const callEndResolveRef = useRef<(() => void) | null>(null);
+  const codingQuestionTriggeredRef = useRef(false);
+  const codingQuestionDetectedRef = useRef<{ question: string; conversation: ConversationEntry[] } | null>(null);
 
   const {
     addToTranscript,
@@ -75,6 +81,14 @@ export const useVapi = ({
     () => new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' }),
     [],
   );
+
+  // Sync codingQuestionDetected to ref for use in callbacks
+  useEffect(() => {
+    codingQuestionDetectedRef.current = codingQuestionDetected;
+    if (!codingQuestionDetected) {
+      codingQuestionTriggeredRef.current = false;
+    }
+  }, [codingQuestionDetected]);
 
   useEffect(() => {
     userRef.current = user;
@@ -158,6 +172,18 @@ export const useVapi = ({
 
     clientAny.on('call-end', async () => {
       console.log('[call-end] Event fired');
+      
+      // Check if we have a coding question detected - if so, don't do full cleanup
+      // We need to preserve state for the modal
+      if (codingQuestionDetectedRef.current) {
+        console.log('[call-end] Coding question detected, skipping full cleanup to preserve state for modal');
+        setIsCallEnding(false);
+        setCallStatus('idle');
+        setIsSpeaking(false);
+        // Don't clear interviewId or other state - we need it for the modal
+        return;
+      }
+      
       setIsCallEnding(true);
       setCallStatus('idle');
       setIsSpeaking(false);
@@ -219,6 +245,15 @@ export const useVapi = ({
     client.on('speech-end', () => setIsSpeaking(false));
 
     client.on('message', (message: any) => {
+      console.log('[useVapi] Message received:', {
+        type: message.type,
+        transcriptType: message.transcriptType,
+        role: message.role,
+        hasTranscript: !!message.transcript,
+        transcriptLength: message.transcript?.length || 0,
+        transcriptPreview: message.transcript?.substring(0, 100) || 'N/A',
+      });
+
       if (message.type === 'transcript' && message.transcriptType === 'final') {
         const entry: ConversationEntry = {
           role: message.role || 'assistant',
@@ -235,6 +270,110 @@ export const useVapi = ({
           timestamp: new Date().toISOString(),
           type: 'general',
         });
+
+        // Check for coding question trigger phrase in TECHNICAL rounds
+        console.log('[useVapi] Checking coding question conditions:', {
+          roundType,
+          isTechnical: roundType === 'TECHNICAL',
+          isAssistant: message.role === 'assistant',
+          hasTranscript: !!message.transcript,
+          alreadyDetected: !!codingQuestionDetected,
+          willCheck: roundType === 'TECHNICAL' && message.role === 'assistant' && message.transcript && !codingQuestionDetected,
+        });
+
+        if (
+          roundType === 'TECHNICAL' &&
+          message.role === 'assistant' &&
+          message.transcript &&
+          !codingQuestionDetected
+        ) {
+          const transcript = message.transcript.toLowerCase();
+          // Updated trigger phrases - detect when VAPI says it's going to provide a coding question
+          const triggerPhrase1 = "i'm going to provide you with a coding question";
+          const triggerPhrase2 = "i am going to provide you with a coding question";
+          const triggerPhrase3 = "let me present you with a coding challenge";
+          const triggerPhrase4 = "i'd like you to solve a coding problem now";
+          
+          console.log('[useVapi] Analyzing transcript for trigger phrases:', {
+            transcriptLength: transcript.length,
+            transcriptPreview: transcript.substring(0, 200),
+            triggerPhrases: [triggerPhrase1, triggerPhrase2, triggerPhrase3, triggerPhrase4],
+          });
+          
+          // Check current message and recent conversation
+          const allRecentMessages = [...conversationRef.current, entry];
+          const recentText = allRecentMessages
+            .filter((c) => c.role === 'assistant')
+            .slice(-5) // Check last 5 assistant messages
+            .map((c) => c.text.toLowerCase())
+            .join(' ');
+
+          console.log('[useVapi] Recent conversation context:', {
+            totalMessages: allRecentMessages.length,
+            assistantMessages: allRecentMessages.filter((c) => c.role === 'assistant').length,
+            recentTextLength: recentText.length,
+            recentTextPreview: recentText.substring(0, 200),
+          });
+
+          const hasTriggerInCurrent = 
+            transcript.includes(triggerPhrase1) || 
+            transcript.includes(triggerPhrase2) ||
+            transcript.includes(triggerPhrase3) ||
+            transcript.includes(triggerPhrase4);
+          const hasTriggerInRecent = 
+            recentText.includes(triggerPhrase1) ||
+            recentText.includes(triggerPhrase2) ||
+            recentText.includes(triggerPhrase3) ||
+            recentText.includes(triggerPhrase4);
+          const hasTrigger = hasTriggerInCurrent || hasTriggerInRecent;
+
+          console.log('[useVapi] Trigger phrase check results:', {
+            hasTriggerInCurrent,
+            hasTriggerInRecent,
+            hasTrigger,
+            currentTranscriptIncludesPhrase1: transcript.includes(triggerPhrase1),
+            currentTranscriptIncludesPhrase2: transcript.includes(triggerPhrase2),
+            currentTranscriptIncludesPhrase3: transcript.includes(triggerPhrase3),
+            currentTranscriptIncludesPhrase4: transcript.includes(triggerPhrase4),
+          });
+
+          if (hasTrigger && !codingQuestionTriggeredRef.current) {
+            codingQuestionTriggeredRef.current = true;
+            console.log('[useVapi] ✅ Trigger phrase detected - ending call immediately and opening modal');
+            
+            // End the call FIRST, before setting state to ensure instant termination
+            if (vapiClient) {
+              vapiClient.stop();
+              console.log('[useVapi] ✅ Call stopped immediately');
+            } else {
+              console.warn('[useVapi] ⚠️ vapiClient is null, cannot stop call');
+            }
+            
+            // Store conversation for question generation (no question yet - will be generated from transcript)
+            const allMessages = [...conversationRef.current, entry];
+            
+            setCodingQuestionDetected({
+              question: '', // Empty - will be generated from transcript
+              conversation: allMessages,
+            });
+
+            console.log('[useVapi] ✅ codingQuestionDetected state set, modal will open');
+          } else if (hasTrigger && codingQuestionTriggeredRef.current) {
+            console.log('[useVapi] Trigger already processed, skipping...');
+          } else {
+            console.log('[useVapi] No trigger phrase found in transcript or recent conversation');
+          }
+        } else {
+          if (roundType !== 'TECHNICAL') {
+            console.log('[useVapi] Skipping coding question check - not TECHNICAL round:', roundType);
+          } else if (message.role !== 'assistant') {
+            console.log('[useVapi] Skipping coding question check - not assistant message:', message.role);
+          } else if (!message.transcript) {
+            console.log('[useVapi] Skipping coding question check - no transcript');
+          } else if (codingQuestionDetected) {
+            console.log('[useVapi] Skipping coding question check - already detected');
+          }
+        }
       }
     });
 
@@ -419,6 +558,117 @@ export const useVapi = ({
     [socketConnected, interviewId, emitCodeUpdate],
   );
 
+  const startInterviewWithContext = useCallback(
+    async (contextOverride?: { systemPrompt: string; firstMessage: string }) => {
+      if (!user) {
+        setVapiError('Please sign in to start the interview.');
+        return;
+      }
+
+      if (!vapiClient) {
+        setVapiError('Voice client not ready.');
+        return;
+      }
+
+      const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
+      if (!assistantId) {
+        setVapiError('Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID');
+        return;
+      }
+
+      setActiveAssistantId(assistantId);
+      activeAssistantIdRef.current = assistantId;
+      setCallStatus('connecting');
+      
+      console.log('[startInterviewWithContext] Starting interview with context override');
+
+      try {
+        const systemPrompt = contextOverride?.systemPrompt || context?.systemPrompt || null;
+        const firstMessage = contextOverride?.firstMessage || context?.firstMessage || null;
+
+        const interviewResp = await vapiApi.startInterview({
+          assistantId,
+          contextPrompt: systemPrompt,
+          sessionId: sessionId || undefined,
+          roundType: roundType || undefined,
+        });
+
+        if (!interviewResp.success || !interviewResp.data) {
+          setCallStatus('idle');
+          setVapiError(interviewResp.error || 'Failed to start interview');
+          return;
+        }
+
+        setInterviewId(interviewResp.data.id);
+        interviewIdRef.current = interviewResp.data.id;
+
+        const startTime = new Date(interviewResp.data.startedAt);
+        setCallStartedAt(startTime);
+        callStartedAtRef.current = startTime;
+
+        const newInterviewId = interviewResp.data.id;
+        setTimeout(async () => {
+          try {
+            const stateResp = await vapiApi.initializeInterviewState({
+              userId: user.id,
+              interviewId: newInterviewId,
+              sessionId: sessionId || undefined,
+              roundType: roundType || 'BEHAVIORAL',
+              targetId: targetId || undefined,
+            });
+            console.log('[startInterviewWithContext] Interview state initialized:', stateResp);
+          } catch (stateErr) {
+            console.warn('[startInterviewWithContext] Failed to initialize state:', stateErr);
+          }
+        }, 500);
+
+        const vapiCall = await vapiClient.start(assistantId, {
+          model: {
+            provider: 'google',
+            model: 'gemini-2.5-flash-lite',
+            toolIds: [
+              'caa8e1cd-b9c7-473c-a69e-f445846f202d',
+              'e022edd5-34b3-4671-af55-464cd947fbe4',
+              '7ec95d93-6330-4329-8069-be07c566611b',
+              '1e1f0237-f421-4b0b-b03a-dd046f10c335',
+              'f709f0d0-4f0a-4cc2-878c-963d5176647a',
+              '01665899-7776-46c0-ac9b-a3b33c26cc48',
+              '7364a03c-a7a9-477e-a9a0-eebf40f78095',
+              'c71cf8bc-9777-4137-a6fc-22b3c26ffdaa',
+              '52f1d743-8a30-4ab6-976d-830945d731f9',
+              '3f389918-4308-4b65-80d2-2502f4f5bcbc',
+            ],
+            messages: [
+              {
+                role: 'system',
+                content: systemPrompt,
+              },
+            ],
+          },
+          firstMessage: firstMessage,
+          variableValues: {
+            userId: user.id,
+            interviewId: interviewResp.data.id,
+            roundType: roundType || 'BEHAVIORAL',
+            targetId: targetId || '',
+            sessionId: sessionId || '',
+            userContext: systemPrompt || null,
+          },
+        } as any);
+
+        if (vapiCall?.id) {
+          setCallId(vapiCall.id);
+          callIdRef.current = vapiCall.id;
+        }
+      } catch (error) {
+        console.error('[startInterviewWithContext] Error:', error);
+        setCallStatus('idle');
+        setVapiError(error instanceof Error ? error.message : 'Failed to start interview');
+      }
+    },
+    [user, vapiClient, context, sessionId, roundType, targetId],
+  );
+
   return {
     vapiClient,
     callStatus,
@@ -429,8 +679,11 @@ export const useVapi = ({
     conversation,
     isCallEnding,
     interviewId,
+    codingQuestionDetected,
+    setCodingQuestionDetected,
 
     startInterview,
+    startInterviewWithContext,
     stopInterview,
 
     socketConnected,

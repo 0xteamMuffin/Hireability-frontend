@@ -16,6 +16,7 @@ import InteractiveCodeEditor from './interactive-code-editor';
 import { useInterviewStore, selectIsCodingPhase } from '@/lib/stores/interview-store';
 import { RoundType as OldRoundType, ROUND_DISPLAY_INFO } from '@/lib/types';
 import { sessionApi } from '@/lib/api';
+import CodingQuestionModal from './coding-question-modal';
 
 const useTime = () => {
   const [time, setTime] = useState(new Date());
@@ -96,9 +97,12 @@ const Meeting: React.FC = () => {
     context,
     conversation,
     startInterview,
+    startInterviewWithContext,
     stopInterview,
     isCallEnding,
     interviewId,
+    codingQuestionDetected,
+    setCodingQuestionDetected,
     emitExpressionUpdate,
     emitCodeUpdate,
   } = useVapi({
@@ -108,6 +112,8 @@ const Meeting: React.FC = () => {
     roundType: roundType || undefined,
     getAverageExpressions,
   });
+
+  const [showCodingModal, setShowCodingModal] = useState(false);
 
   useEffect(() => {
     if (interviewId) {
@@ -166,12 +172,65 @@ const Meeting: React.FC = () => {
       callStatus === 'idle' &&
       contextStatus !== 'loading' &&
       !vapiError &&
-      !hasStartedRef.current
+      !hasStartedRef.current &&
+      !codingQuestionDetected
     ) {
       hasStartedRef.current = true;
       startInterview();
     }
-  }, [vapiClient, callStatus, contextStatus, vapiError, startInterview]);
+  }, [vapiClient, callStatus, contextStatus, vapiError, startInterview, codingQuestionDetected]);
+
+  useEffect(() => {
+    console.log('[Meeting] codingQuestionDetected changed:', {
+      hasCodingQuestion: !!codingQuestionDetected,
+      questionPreview: codingQuestionDetected?.question?.substring(0, 100) || 'N/A',
+      conversationLength: codingQuestionDetected?.conversation?.length || 0,
+      currentShowCodingModal: showCodingModal,
+    });
+
+    if (codingQuestionDetected) {
+      console.log('[Meeting] Coding question detected, opening modal:', {
+        question: codingQuestionDetected.question.substring(0, 100),
+        conversationLength: codingQuestionDetected.conversation.length,
+      });
+      
+      // Ensure call is ended immediately when modal opens (backup safety check)
+      if (vapiClient && callStatus === 'in-call') {
+        console.log('[Meeting] Ensuring call is ended as modal opens');
+        vapiClient.stop();
+      }
+      
+      setShowCodingModal(true);
+      console.log('[Meeting] ✅ showCodingModal set to true');
+    } else {
+      console.log('[Meeting] No coding question detected, modal should remain closed');
+    }
+  }, [codingQuestionDetected, showCodingModal, vapiClient, callStatus]);
+
+  // Track when showCodingModal changes
+  useEffect(() => {
+    console.log('[Meeting] showCodingModal state changed:', {
+      showCodingModal,
+      hasCodingQuestion: !!codingQuestionDetected,
+      modalShouldRender: codingQuestionDetected && showCodingModal,
+    });
+  }, [showCodingModal, codingQuestionDetected]);
+
+  const handleResumeCall = useCallback(
+    async (resumeContext: { systemPrompt: string; firstMessage: string }) => {
+      setCodingQuestionDetected(null);
+      setShowCodingModal(false);
+      hasStartedRef.current = false;
+
+      // Wait for call to fully end, then start new one
+      setTimeout(async () => {
+        if (vapiClient && resumeContext) {
+          await startInterviewWithContext(resumeContext);
+        }
+      }, 2000);
+    },
+    [vapiClient, startInterviewWithContext, setCodingQuestionDetected],
+  );
 
   useEffect(() => {
     return () => {
@@ -240,6 +299,33 @@ const Meeting: React.FC = () => {
   }
 
   if (callStatus !== 'in-call') {
+    // Show modal if coding question is detected, even if call is not active
+    if (codingQuestionDetected && showCodingModal) {
+      // Render the modal on a dark background
+      return (
+        <div className="flex h-screen flex-col overflow-hidden bg-[#202124] text-white">
+          {codingQuestionDetected && showCodingModal && (
+            <CodingQuestionModal
+              isOpen={showCodingModal}
+              onClose={() => {
+                console.log('[Meeting] Closing coding modal');
+                setShowCodingModal(false);
+                setCodingQuestionDetected(null);
+              }}
+              question={codingQuestionDetected.question}
+              interviewId={interviewId || ''}
+              previousSystemPrompt={context?.systemPrompt || ''}
+              previousConversation={codingQuestionDetected.conversation.map((c) => ({
+                role: c.role,
+                content: c.text,
+              }))}
+              onResumeCall={handleResumeCall}
+            />
+          )}
+        </div>
+      );
+    }
+    
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-[#202124] text-white">
         <Loader2 size={48} className="mb-4 animate-spin text-indigo-400" />
@@ -360,6 +446,26 @@ const Meeting: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Coding Question Modal */}
+      {codingQuestionDetected && showCodingModal && (
+        <CodingQuestionModal
+          isOpen={showCodingModal}
+          onClose={() => {
+            console.log('[Meeting] Closing coding modal');
+            setShowCodingModal(false);
+            setCodingQuestionDetected(null);
+          }}
+          question={codingQuestionDetected.question}
+          interviewId={interviewId || ''}
+          previousSystemPrompt={context?.systemPrompt || ''}
+          previousConversation={codingQuestionDetected.conversation.map((c) => ({
+            role: c.role,
+            content: c.text,
+          }))}
+          onResumeCall={handleResumeCall}
+        />
+      )}
 
       {/* Controls */}
       <MeetingControls

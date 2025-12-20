@@ -79,4 +79,45 @@ export const vapiApi = {
   }): Promise<ApiResponse<{ hint: string; hintsRemaining: number }>> => {
     return apiClient.post('/api/vapi/interactive/getCodingHint', payload);
   },
+
+  generateCodingQuestion: (payload: {
+    interviewId: string;
+    transcript: Array<{ role: 'user' | 'assistant'; content: string }>;
+  }): Promise<ApiResponse<{ question: string }>> => {
+    return apiClient.post('/api/vapi/interactive/generateCodingQuestion', payload);
+  },
+
+  evaluateCodingSolution: (payload: {
+    interviewId: string;
+    question: string;
+    solution: string;
+    language?: string;
+  }): Promise<
+    ApiResponse<{
+      score: number;
+      feedback: string;
+      strengths: string[];
+      improvements: string[];
+      passed: boolean;
+    }>
+  > => {
+    return apiClient.post('/api/vapi/interactive/evaluateCodingSolution', payload);
+  },
+
+  buildResumeCallContext: (payload: {
+    interviewId: string;
+    previousSystemPrompt: string;
+    previousConversation: Array<{ role: 'user' | 'assistant'; content: string }>;
+    evaluation: {
+      question: string;
+      solution: string;
+      score: number;
+      feedback: string;
+      strengths: string[];
+      improvements: string[];
+      passed: boolean;
+    };
+  }): Promise<ApiResponse<{ systemPrompt: string; firstMessage: string }>> => {
+    return apiClient.post('/api/vapi/interactive/buildResumeCallContext', payload);
+  },
 };
