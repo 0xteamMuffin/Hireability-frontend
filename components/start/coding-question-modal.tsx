@@ -153,12 +153,18 @@ const CodingQuestionModal: React.FC<CodingQuestionModalProps> = ({
         console.log('[CodingQuestionModal] Resume context result:', resumeResult);
 
         if (resumeResult.success && resumeResult.data) {
-          // Wait a moment to show evaluation, then resume call
+          // Wait 5 seconds to show evaluation, then resume call
           setTimeout(() => {
-            console.log('[CodingQuestionModal] Resuming call with context');
+            console.log('[CodingQuestionModal] Resuming call with context:', {
+              systemPromptLength: resumeResult.data.systemPrompt?.length || 0,
+              systemPromptPreview: resumeResult.data.systemPrompt?.substring(0, 300) || 'N/A',
+              systemPromptContainsContinuation: resumeResult.data.systemPrompt?.includes('CONTINUATION CONTEXT') || false,
+              systemPromptContainsEvaluation: resumeResult.data.systemPrompt?.includes('Coding Question Evaluation') || false,
+              firstMessage: resumeResult.data.firstMessage?.substring(0, 150) || 'N/A',
+            });
             onResumeCall(resumeResult.data);
             onClose();
-          }, 3000);
+          }, 5000);
         } else {
           console.error('[CodingQuestionModal] Failed to build resume context:', resumeResult.error);
         }

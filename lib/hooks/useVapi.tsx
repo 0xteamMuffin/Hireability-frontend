@@ -288,16 +288,14 @@ export const useVapi = ({
           !codingQuestionDetected
         ) {
           const transcript = message.transcript.toLowerCase();
-          // Updated trigger phrases - detect when VAPI says it's going to provide a coding question
-          const triggerPhrase1 = "i'm going to provide you with a coding question";
-          const triggerPhrase2 = "i am going to provide you with a coding question";
-          const triggerPhrase3 = "let me present you with a coding challenge";
-          const triggerPhrase4 = "i'd like you to solve a coding problem now";
+          // Simplified trigger detection - look for "coding question" or "coding problem" in the message
+          // This catches variations like "I'm gonna provide you with a coding question", "let me give you a coding question", etc.
+          const codingQuestionKeywords = ['coding question', 'coding problem', 'coding challenge'];
           
-          console.log('[useVapi] Analyzing transcript for trigger phrases:', {
+          console.log('[useVapi] Analyzing transcript for coding question triggers:', {
             transcriptLength: transcript.length,
             transcriptPreview: transcript.substring(0, 200),
-            triggerPhrases: [triggerPhrase1, triggerPhrase2, triggerPhrase3, triggerPhrase4],
+            keywords: codingQuestionKeywords,
           });
           
           // Check current message and recent conversation
@@ -315,26 +313,21 @@ export const useVapi = ({
             recentTextPreview: recentText.substring(0, 200),
           });
 
-          const hasTriggerInCurrent = 
-            transcript.includes(triggerPhrase1) || 
-            transcript.includes(triggerPhrase2) ||
-            transcript.includes(triggerPhrase3) ||
-            transcript.includes(triggerPhrase4);
-          const hasTriggerInRecent = 
-            recentText.includes(triggerPhrase1) ||
-            recentText.includes(triggerPhrase2) ||
-            recentText.includes(triggerPhrase3) ||
-            recentText.includes(triggerPhrase4);
+          // Check if any coding question keywords appear in the transcript
+          const hasTriggerInCurrent = codingQuestionKeywords.some(keyword => transcript.includes(keyword));
+          const hasTriggerInRecent = codingQuestionKeywords.some(keyword => recentText.includes(keyword));
           const hasTrigger = hasTriggerInCurrent || hasTriggerInRecent;
 
           console.log('[useVapi] Trigger phrase check results:', {
             hasTriggerInCurrent,
             hasTriggerInRecent,
             hasTrigger,
-            currentTranscriptIncludesPhrase1: transcript.includes(triggerPhrase1),
-            currentTranscriptIncludesPhrase2: transcript.includes(triggerPhrase2),
-            currentTranscriptIncludesPhrase3: transcript.includes(triggerPhrase3),
-            currentTranscriptIncludesPhrase4: transcript.includes(triggerPhrase4),
+            currentTranscriptContainsCodingQuestion: transcript.includes('coding question'),
+            currentTranscriptContainsCodingProblem: transcript.includes('coding problem'),
+            currentTranscriptContainsCodingChallenge: transcript.includes('coding challenge'),
+            recentTextContainsCodingQuestion: recentText.includes('coding question'),
+            recentTextContainsCodingProblem: recentText.includes('coding problem'),
+            recentTextContainsCodingChallenge: recentText.includes('coding challenge'),
           });
 
           if (hasTrigger && !codingQuestionTriggeredRef.current) {
@@ -580,11 +573,23 @@ export const useVapi = ({
       activeAssistantIdRef.current = assistantId;
       setCallStatus('connecting');
       
-      console.log('[startInterviewWithContext] Starting interview with context override');
+      console.log('[startInterviewWithContext] Starting interview with context override:', {
+        hasContextOverride: !!contextOverride,
+        systemPromptLength: contextOverride?.systemPrompt?.length || 0,
+        systemPromptPreview: contextOverride?.systemPrompt?.substring(0, 300) || 'N/A',
+        firstMessagePreview: contextOverride?.firstMessage?.substring(0, 100) || 'N/A',
+      });
 
       try {
         const systemPrompt = contextOverride?.systemPrompt || context?.systemPrompt || null;
         const firstMessage = contextOverride?.firstMessage || context?.firstMessage || null;
+
+        console.log('[startInterviewWithContext] Using system prompt:', {
+          source: contextOverride ? 'contextOverride (resuming)' : 'context (new)',
+          systemPromptLength: systemPrompt?.length || 0,
+          hasFirstMessage: !!firstMessage,
+          firstMessagePreview: firstMessage?.substring(0, 100) || 'N/A',
+        });
 
         const interviewResp = await vapiApi.startInterview({
           assistantId,
@@ -607,20 +612,34 @@ export const useVapi = ({
         callStartedAtRef.current = startTime;
 
         const newInterviewId = interviewResp.data.id;
-        setTimeout(async () => {
-          try {
-            const stateResp = await vapiApi.initializeInterviewState({
-              userId: user.id,
-              interviewId: newInterviewId,
-              sessionId: sessionId || undefined,
-              roundType: roundType || 'BEHAVIORAL',
-              targetId: targetId || undefined,
-            });
-            console.log('[startInterviewWithContext] Interview state initialized:', stateResp);
-          } catch (stateErr) {
-            console.warn('[startInterviewWithContext] Failed to initialize state:', stateErr);
-          }
-        }, 500);
+        
+        // Only initialize state if this is a NEW interview, not a resume
+        // When resuming, we want to keep the existing state with the conversation history
+        if (!contextOverride) {
+          setTimeout(async () => {
+            try {
+              const stateResp = await vapiApi.initializeInterviewState({
+                userId: user.id,
+                interviewId: newInterviewId,
+                sessionId: sessionId || undefined,
+                roundType: roundType || 'BEHAVIORAL',
+                targetId: targetId || undefined,
+              });
+              console.log('[startInterviewWithContext] Interview state initialized:', stateResp);
+            } catch (stateErr) {
+              console.warn('[startInterviewWithContext] Failed to initialize state:', stateErr);
+            }
+          }, 500);
+        } else {
+          console.log('[startInterviewWithContext] Skipping state initialization - resuming with continuation context');
+        }
+
+        console.log('[startInterviewWithContext] Starting VAPI call with system prompt:', {
+          systemPromptLength: systemPrompt?.length || 0,
+          systemPromptContainsContinuation: systemPrompt?.includes('CONTINUATION CONTEXT') || false,
+          systemPromptContainsEvaluation: systemPrompt?.includes('Coding Question Evaluation') || false,
+          firstMessage: firstMessage?.substring(0, 150) || 'N/A',
+        });
 
         const vapiCall = await vapiClient.start(assistantId, {
           model: {
@@ -655,6 +674,12 @@ export const useVapi = ({
             userContext: systemPrompt || null,
           },
         } as any);
+
+        console.log('[startInterviewWithContext] VAPI call started successfully:', {
+          callId: vapiCall?.id,
+          hasSystemPrompt: !!systemPrompt,
+          hasFirstMessage: !!firstMessage,
+        });
 
         if (vapiCall?.id) {
           setCallId(vapiCall.id);
