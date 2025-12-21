@@ -385,7 +385,7 @@ export const useVapi = ({
 
     const loadContext = async () => {
       setContextStatus('loading');
-      const response = await vapiApi.getContext(targetId || undefined, roundType || undefined);
+      const response = await vapiApi.getContext(sessionId || undefined, roundType || undefined);
       if (response.success && response.data) {
         setContext(response.data);
         setContextStatus('idle');
@@ -396,7 +396,7 @@ export const useVapi = ({
     };
 
     loadContext();
-  }, [user, targetId, roundType]);
+  }, [user, sessionId, roundType]);
 
   const startInterview = useCallback(async () => {
     if (!user) {
