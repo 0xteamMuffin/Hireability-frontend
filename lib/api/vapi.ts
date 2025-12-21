@@ -11,9 +11,9 @@ import {
 import type { CodeExecutionResult } from '../types/interview-state';
 
 export const vapiApi = {
-  getContext: (targetId?: string, roundType?: string): Promise<ApiResponse<VapiContext>> => {
+  getContext: (sessionId?: string, roundType?: string): Promise<ApiResponse<VapiContext>> => {
     const params = new URLSearchParams();
-    if (targetId) params.append('targetId', targetId);
+    if (sessionId) params.append('sessionId', sessionId);
     if (roundType) params.append('roundType', roundType);
     const queryString = params.toString();
     const url = queryString ? `/api/vapi/context?${queryString}` : '/api/vapi/context';
