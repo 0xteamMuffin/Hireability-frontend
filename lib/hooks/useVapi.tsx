@@ -54,6 +54,7 @@ export const useVapi = ({
     question: string;
     conversation: ConversationEntry[];
   } | null>(null);
+  const [isPausedForCoding, setIsPausedForCoding] = useState(false);
 
   const interviewIdRef = useRef<string | null>(null);
   const callIdRef = useRef<string | null>(null);
@@ -64,6 +65,7 @@ export const useVapi = ({
   const callEndResolveRef = useRef<(() => void) | null>(null);
   const codingQuestionTriggeredRef = useRef(false);
   const codingQuestionDetectedRef = useRef<{ question: string; conversation: ConversationEntry[] } | null>(null);
+  const isPausedForCodingRef = useRef(false);
 
   const {
     addToTranscript,
@@ -89,6 +91,11 @@ export const useVapi = ({
       codingQuestionTriggeredRef.current = false;
     }
   }, [codingQuestionDetected]);
+
+  // Sync isPausedForCoding to ref
+  useEffect(() => {
+    isPausedForCodingRef.current = isPausedForCoding;
+  }, [isPausedForCoding]);
 
   useEffect(() => {
     userRef.current = user;
@@ -173,14 +180,13 @@ export const useVapi = ({
     clientAny.on('call-end', async () => {
       console.log('[call-end] Event fired');
       
-      // Check if we have a coding question detected - if so, don't do full cleanup
-      // We need to preserve state for the modal
-      if (codingQuestionDetectedRef.current) {
-        console.log('[call-end] Coding question detected, skipping full cleanup to preserve state for modal');
+      // Check if call is paused for coding - if so, this might be an unexpected end
+      if (isPausedForCodingRef.current) {
+        console.log('[call-end] Call ended while paused for coding - preserving state');
         setIsCallEnding(false);
         setCallStatus('idle');
         setIsSpeaking(false);
-        // Don't clear interviewId or other state - we need it for the modal
+        setIsPausedForCoding(false);
         return;
       }
       
@@ -332,14 +338,18 @@ export const useVapi = ({
 
           if (hasTrigger && !codingQuestionTriggeredRef.current) {
             codingQuestionTriggeredRef.current = true;
-            console.log('[useVapi] ✅ Trigger phrase detected - ending call immediately and opening modal');
+            console.log('[useVapi] ✅ Trigger phrase detected - pausing call and opening modal');
             
-            // End the call FIRST, before setting state to ensure instant termination
+            // PAUSE the call instead of stopping it - keep it active in background
             if (vapiClient) {
-              vapiClient.stop();
-              console.log('[useVapi] ✅ Call stopped immediately');
+              // Mute the assistant so it stops talking
+              (vapiClient as any).send({ type: 'control', control: 'mute-assistant' });
+              // Also mute user's mic to prevent accidental input
+              vapiClient.setMuted(true);
+              setIsPausedForCoding(true);
+              console.log('[useVapi] ✅ Call paused (assistant muted, user muted) - call remains active');
             } else {
-              console.warn('[useVapi] ⚠️ vapiClient is null, cannot stop call');
+              console.warn('[useVapi] ⚠️ vapiClient is null, cannot pause call');
             }
             
             // Store conversation for question generation (no question yet - will be generated from transcript)
@@ -705,6 +715,71 @@ export const useVapi = ({
     [vapiClient],
   );
 
+  /**
+   * Resume the call after the coding question is completed.
+   * This unmutes both the assistant and user, and sends a continuation message.
+   */
+  const resumeCallAfterCoding = useCallback(
+    (evaluationContext: { 
+      score: number; 
+      feedback: string; 
+      passed: boolean;
+      question: string;
+      solution: string;
+    }) => {
+      if (!vapiClient) {
+        console.error('[resumeCallAfterCoding] vapiClient is null');
+        return;
+      }
+
+      console.log('[resumeCallAfterCoding] Resuming call with evaluation:', {
+        score: evaluationContext.score,
+        passed: evaluationContext.passed,
+        feedbackPreview: evaluationContext.feedback.substring(0, 100),
+      });
+
+      // Unmute the user's microphone
+      vapiClient.setMuted(false);
+      
+      // Unmute the assistant
+      (vapiClient as any).send({ type: 'control', control: 'unmute-assistant' });
+      
+      // Build a continuation message for the assistant
+      const continuationMessage = `The candidate has completed the coding question. Here is their evaluation:
+
+**Question:** ${evaluationContext.question}
+
+**Score:** ${evaluationContext.score}/10 (${evaluationContext.passed ? 'Passed' : 'Needs Improvement'})
+
+**Feedback:** ${evaluationContext.feedback}
+
+**Their Solution:**
+\`\`\`
+${evaluationContext.solution}
+\`\`\`
+
+Please acknowledge this and continue the interview. Provide brief feedback on their solution and then proceed with the rest of the technical interview.`;
+
+      // Send the evaluation as a message to the assistant context
+      (vapiClient as any).send({
+        type: 'add-message',
+        message: {
+          role: 'system',
+          content: continuationMessage,
+        },
+        triggerResponseEnabled: true,
+      });
+
+      // Reset coding question state
+      setIsPausedForCoding(false);
+      setCodingQuestionDetected(null);
+      codingQuestionTriggeredRef.current = false;
+
+      console.log('[resumeCallAfterCoding] Call resumed successfully');
+    },
+    [vapiClient],
+  );
+
   return {
     vapiClient,
     callStatus,
@@ -717,11 +792,13 @@ export const useVapi = ({
     interviewId,
     codingQuestionDetected,
     setCodingQuestionDetected,
+    isPausedForCoding,
 
     startInterview,
     startInterviewWithContext,
     stopInterview,
     setMuted,
+    resumeCallAfterCoding,
 
     socketConnected,
     emitExpressionUpdate: handleExpressionUpdate,

@@ -12,7 +12,13 @@ interface CodingQuestionModalProps {
   interviewId: string;
   previousSystemPrompt: string;
   previousConversation: Array<{ role: 'user' | 'assistant'; content: string }>;
-  onResumeCall: (context: { systemPrompt: string; firstMessage: string }) => void;
+  onResumeCall: (evaluationContext: { 
+    score: number; 
+    feedback: string; 
+    passed: boolean;
+    question: string;
+    solution: string;
+  }) => void;
 }
 
 const CodingQuestionModal: React.FC<CodingQuestionModalProps> = ({
@@ -134,41 +140,21 @@ const CodingQuestionModal: React.FC<CodingQuestionModalProps> = ({
       console.log('[CodingQuestionModal] Evaluation result:', evalResult);
 
       if (evalResult.success && evalResult.data) {
-        setEvaluation(evalResult.data);
+        const evaluationData = evalResult.data;
+        setEvaluation(evaluationData);
 
-        console.log('[CodingQuestionModal] Building resume context...');
-        
-        // Build resume context
-        const resumeResult = await vapiApi.buildResumeCallContext({
-          interviewId,
-          previousSystemPrompt,
-          previousConversation,
-          evaluation: {
-            ...evalResult.data,
+        // Wait 3 seconds to show evaluation, then resume the paused call
+        setTimeout(() => {
+          console.log('[CodingQuestionModal] Resuming paused call with evaluation');
+          onResumeCall({
+            score: evaluationData.score,
+            feedback: evaluationData.feedback,
+            passed: evaluationData.passed,
             question: displayQuestion,
             solution: solution,
-          },
-        });
-
-        console.log('[CodingQuestionModal] Resume context result:', resumeResult);
-
-        if (resumeResult.success && resumeResult.data) {
-          const resumeData = resumeResult.data;
-          // Wait 5 seconds to show evaluation, then resume call
-          setTimeout(() => {
-            console.log('[CodingQuestionModal] Resuming call with context:', {
-              systemPromptLength: resumeData.systemPrompt?.length || 0,
-              systemPromptPreview: resumeData.systemPrompt?.substring(0, 300) || 'N/A',
-              systemPromptContainsContinuation: resumeData.systemPrompt?.includes('CONTINUATION CONTEXT') || false,
-              systemPromptContainsEvaluation: resumeData.systemPrompt?.includes('Coding Question Evaluation') || false,
-              firstMessage: resumeData.firstMessage?.substring(0, 150) || 'N/A',
-            });
-            onResumeCall(resumeData);
-            onClose();
-          }, 5000);
-        } else {
-          console.error('[CodingQuestionModal] Failed to build resume context:', resumeResult.error);
-        }
+          });
+          onClose();
+        }, 3000);
       } else {
         console.error('[CodingQuestionModal] Evaluation failed:', evalResult.error);
       }

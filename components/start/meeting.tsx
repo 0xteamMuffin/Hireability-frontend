@@ -104,6 +104,8 @@ const Meeting: React.FC = () => {
     interviewId,
     codingQuestionDetected,
     setCodingQuestionDetected,
+    isPausedForCoding,
+    resumeCallAfterCoding,
     emitExpressionUpdate,
     emitCodeUpdate,
   } = useVapi({
@@ -191,26 +193,23 @@ const Meeting: React.FC = () => {
       questionPreview: codingQuestionDetected?.question?.substring(0, 100) || 'N/A',
       conversationLength: codingQuestionDetected?.conversation?.length || 0,
       currentShowCodingModal: showCodingModal,
+      isPausedForCoding,
     });
 
     if (codingQuestionDetected) {
       console.log('[Meeting] Coding question detected, opening modal:', {
         question: codingQuestionDetected.question.substring(0, 100),
         conversationLength: codingQuestionDetected.conversation.length,
+        callIsPaused: isPausedForCoding,
       });
       
-      // Ensure call is ended immediately when modal opens (backup safety check)
-      if (vapiClient && callStatus === 'in-call') {
-        console.log('[Meeting] Ensuring call is ended as modal opens');
-        vapiClient.stop();
-      }
-      
+      // Call should already be paused by useVapi - no need to stop it
       setShowCodingModal(true);
-      console.log('[Meeting] ✅ showCodingModal set to true');
+      console.log('[Meeting] showCodingModal set to true - call remains active but paused');
     } else {
       console.log('[Meeting] No coding question detected, modal should remain closed');
     }
-  }, [codingQuestionDetected, showCodingModal, vapiClient, callStatus]);
+  }, [codingQuestionDetected, showCodingModal, isPausedForCoding]);
 
   // Track when showCodingModal changes
   useEffect(() => {
@@ -218,23 +217,25 @@ const Meeting: React.FC = () => {
       showCodingModal,
       hasCodingQuestion: !!codingQuestionDetected,
       modalShouldRender: codingQuestionDetected && showCodingModal,
+      isPausedForCoding,
     });
-  }, [showCodingModal, codingQuestionDetected]);
+  }, [showCodingModal, codingQuestionDetected, isPausedForCoding]);
 
   const handleResumeCall = useCallback(
-    async (resumeContext: { systemPrompt: string; firstMessage: string }) => {
-      setCodingQuestionDetected(null);
+    (evaluationContext: { 
+      score: number; 
+      feedback: string; 
+      passed: boolean;
+      question: string;
+      solution: string;
+    }) => {
+      console.log('[Meeting] Resuming paused call with evaluation:', evaluationContext);
       setShowCodingModal(false);
-      hasStartedRef.current = false;
-
-      // Wait for call to fully end, then start new one
-      setTimeout(async () => {
-        if (vapiClient && resumeContext) {
-          await startInterviewWithContext(resumeContext);
-        }
-      }, 2000);
+      
+      // Resume the paused call - this unmutes and sends the evaluation to the assistant
+      resumeCallAfterCoding(evaluationContext);
     },
-    [vapiClient, startInterviewWithContext, setCodingQuestionDetected],
+    [resumeCallAfterCoding],
   );
 
   useEffect(() => {
@@ -303,8 +304,8 @@ const Meeting: React.FC = () => {
     );
   }
 
-  if (callStatus !== 'in-call') {
-    // Show modal if coding question is detected, even if call is not active
+  if (callStatus !== 'in-call' && !isPausedForCoding) {
+    // Show modal if coding question is detected, even if call is not active (fallback case)
     if (codingQuestionDetected && showCodingModal) {
       // Render the modal on a dark background
       return (
@@ -336,6 +337,35 @@ const Meeting: React.FC = () => {
         <Loader2 size={48} className="mb-4 animate-spin text-indigo-400" />
         <p className="text-lg text-white/80">Connecting to interview...</p>
         {vapiError && <p className="mt-2 px-4 text-center text-sm text-red-400">{vapiError}</p>}
+      </div>
+    );
+  }
+
+  // Show coding modal overlay when paused for coding (call is still active in background)
+  if (isPausedForCoding && codingQuestionDetected && showCodingModal) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-[#202124] text-white">
+        <CodingQuestionModal
+          isOpen={showCodingModal}
+          onClose={() => {
+            console.log('[Meeting] Closing coding modal while call is paused');
+            setShowCodingModal(false);
+            setCodingQuestionDetected(null);
+            // Also resume the call if user closes modal without submitting
+            if (vapiClient) {
+              vapiClient.setMuted(false);
+              (vapiClient as any).send({ type: 'control', control: 'unmute-assistant' });
+            }
+          }}
+          question={codingQuestionDetected.question}
+          interviewId={interviewId || ''}
+          previousSystemPrompt={context?.systemPrompt || ''}
+          previousConversation={codingQuestionDetected.conversation.map((c) => ({
+            role: c.role,
+            content: c.text,
+          }))}
+          onResumeCall={handleResumeCall}
+        />
       </div>
     );
   }
