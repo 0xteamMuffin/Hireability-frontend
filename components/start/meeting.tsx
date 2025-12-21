@@ -99,6 +99,7 @@ const Meeting: React.FC = () => {
     startInterview,
     startInterviewWithContext,
     stopInterview,
+    setMuted,
     isCallEnding,
     interviewId,
     codingQuestionDetected,
@@ -123,7 +124,11 @@ const Meeting: React.FC = () => {
 
   const currentTime = useTime();
 
-  const toggleMic = () => setMicOn((prev) => !prev);
+  const toggleMic = () => {
+    const newMicState = !micOn;
+    setMicOn(newMicState);
+    setMuted(!newMicState);
+  };
   const toggleCamera = () => setCameraOn((prev) => !prev);
 
   const handleRoundComplete = async () => {

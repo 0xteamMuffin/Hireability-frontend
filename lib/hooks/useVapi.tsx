@@ -459,6 +459,7 @@ export const useVapi = ({
       }, 500);
 
       const vapiCall = await vapiClient.start(assistantId, {
+        silenceTimeoutSeconds: 360,
         model: {
           provider: 'google',
           model: 'gemini-2.5-flash-lite',
@@ -642,6 +643,7 @@ export const useVapi = ({
         });
 
         const vapiCall = await vapiClient.start(assistantId, {
+          silenceTimeoutSeconds: 600,
           model: {
             provider: 'google',
             model: 'gemini-2.5-flash-lite',
@@ -694,6 +696,15 @@ export const useVapi = ({
     [user, vapiClient, context, sessionId, roundType, targetId],
   );
 
+  const setMuted = useCallback(
+    (muted: boolean) => {
+      if (vapiClient) {
+        vapiClient.setMuted(muted);
+      }
+    },
+    [vapiClient],
+  );
+
   return {
     vapiClient,
     callStatus,
@@ -710,6 +721,7 @@ export const useVapi = ({
     startInterview,
     startInterviewWithContext,
     stopInterview,
+    setMuted,
 
     socketConnected,
     emitExpressionUpdate: handleExpressionUpdate,
