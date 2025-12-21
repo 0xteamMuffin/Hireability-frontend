@@ -736,13 +736,23 @@ export const useVapi = ({
         score: evaluationContext.score,
         passed: evaluationContext.passed,
         feedbackPreview: evaluationContext.feedback.substring(0, 100),
+        callStatus,
+        isPausedForCoding,
       });
+
+      // Check if call is still active
+      if (callStatus !== 'in-call' && !isPausedForCoding) {
+        console.warn('[resumeCallAfterCoding] Call is not active! Cannot resume. Status:', callStatus);
+        return;
+      }
 
       // Unmute the user's microphone
       vapiClient.setMuted(false);
+      console.log('[resumeCallAfterCoding] User microphone unmuted');
       
       // Unmute the assistant
       (vapiClient as any).send({ type: 'control', control: 'unmute-assistant' });
+      console.log('[resumeCallAfterCoding] Sent unmute-assistant command');
       
       // Build a continuation message for the assistant
       const continuationMessage = `The candidate has completed the coding question. Here is their evaluation:
@@ -760,6 +770,11 @@ ${evaluationContext.solution}
 
 Please acknowledge this and continue the interview. Provide brief feedback on their solution and then proceed with the rest of the technical interview.`;
 
+      console.log('[resumeCallAfterCoding] Sending continuation message to VAPI:', {
+        messageLength: continuationMessage.length,
+        messagePreview: continuationMessage.substring(0, 200),
+      });
+
       // Send the evaluation as a message to the assistant context
       (vapiClient as any).send({
         type: 'add-message',
@@ -770,6 +785,8 @@ Please acknowledge this and continue the interview. Provide brief feedback on th
         triggerResponseEnabled: true,
       });
 
+      console.log('[resumeCallAfterCoding] ✅ Continuation message sent to VAPI');
+
       // Reset coding question state
       setIsPausedForCoding(false);
       setCodingQuestionDetected(null);
@@ -777,7 +794,7 @@ Please acknowledge this and continue the interview. Provide brief feedback on th
 
       console.log('[resumeCallAfterCoding] Call resumed successfully');
     },
-    [vapiClient],
+    [vapiClient, callStatus, isPausedForCoding],
   );
 
   return {
