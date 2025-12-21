@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Code, Send, Loader2 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { vapiApi } from '@/lib/api';
 
 interface CodingQuestionModalProps {
@@ -197,7 +200,72 @@ const CodingQuestionModal: React.FC<CodingQuestionModalProps> = ({
                 <p>Generating coding question from interview transcript...</p>
               </div>
             ) : (
-              <p className="text-zinc-200 whitespace-pre-wrap">{displayQuestion || 'Loading question...'}</p>
+              <div className="text-zinc-200 prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    // Customize code blocks
+                    code: ({ node, inline, className, children, ...props }) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <pre className="bg-[#1e1e1e] rounded p-3 overflow-x-auto my-2 border border-white/5">
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        </pre>
+                      ) : (
+                        <code className="bg-[#1e1e1e] px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    // Customize headings
+                    h1: ({ children }) => <h1 className="text-xl font-bold mb-2 mt-4 text-white">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 mt-3 text-white">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-base font-semibold mb-1 mt-2 text-zinc-100">{children}</h3>,
+                    h4: ({ children }) => <h4 className="text-sm font-semibold mb-1 mt-2 text-zinc-200">{children}</h4>,
+                    // Customize lists
+                    ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1 ml-4">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1 ml-4">{children}</ol>,
+                    li: ({ children }) => <li className="ml-2">{children}</li>,
+                    // Customize paragraphs
+                    p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
+                    // Customize blockquotes
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-zinc-500 pl-4 my-2 italic text-zinc-300">
+                        {children}
+                      </blockquote>
+                    ),
+                    // Customize tables
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-4">
+                        <table className="min-w-full border-collapse border border-white/10">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border border-white/10 px-4 py-2 bg-[#1e1e1e] text-left font-semibold text-zinc-200">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border border-white/10 px-4 py-2 text-zinc-300">
+                        {children}
+                      </td>
+                    ),
+                    // Customize horizontal rules
+                    hr: () => <hr className="my-4 border-white/10" />,
+                    // Customize strong/bold
+                    strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                    // Customize emphasis/italic
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                  }}
+                >
+                  {displayQuestion || 'Loading question...'}
+                </ReactMarkdown>
+              </div>
             )}
           </div>
 
